@@ -142,7 +142,7 @@
               <StackPanel Grid.Row="2" Orientation="Horizontal">
                 <TextBlock Text="Selected: " VerticalAlignment="Center"/>
                 <TextBlock Name="txtOracleSelectedCount" Text="0" VerticalAlignment="Center"/>
-                <TextBlock Text=" table(s)" VerticalAlignment="Center"/>
+                <TextBlock Name="txtOracleTableLabel" Text=" table" VerticalAlignment="Center"/>
               </StackPanel>
             </Grid>
           </GroupBox>
@@ -189,7 +189,7 @@
               <StackPanel Grid.Row="2" Orientation="Horizontal">
                 <TextBlock Text="Selected: " VerticalAlignment="Center"/>
                 <TextBlock Name="txtPostgresSelectedCount" Text="0" VerticalAlignment="Center"/>
-                <TextBlock Text=" table(s)" VerticalAlignment="Center"/>
+                <TextBlock Name="txtPostgresTableLabel" Text=" table" VerticalAlignment="Center"/>
               </StackPanel>
             </Grid>
           </GroupBox>

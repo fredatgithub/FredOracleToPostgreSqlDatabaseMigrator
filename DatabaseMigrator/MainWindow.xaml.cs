@@ -480,12 +480,18 @@ namespace DatabaseMigrator
       SaveLogs();
     }
 
+    private string Plural(int count)
+    {
+      return count > 1 ? "s" : "";
+    }
+
     private void UpdateOracleSelectedCount()
     {
       if (lstOracleTables.ItemsSource is IEnumerable<TableInfo> tables)
       {
         var selectedCount = tables.Count(t => t.IsSelected);
         txtOracleSelectedCount.Text = selectedCount.ToString();
+        txtOracleTableLabel.Text = $" table{Plural(selectedCount)}";
       }
     }
 
@@ -495,6 +501,7 @@ namespace DatabaseMigrator
       {
         var selectedCount = tables.Count(t => t.IsSelected);
         txtPostgresSelectedCount.Text = selectedCount.ToString();
+        txtPostgresTableLabel.Text = $" table{Plural(selectedCount)}";
       }
     }
 
