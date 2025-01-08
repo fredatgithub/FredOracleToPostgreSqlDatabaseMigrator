@@ -199,6 +199,11 @@
           </GroupBox>
         </Grid>
       </TabItem>
+      <TabItem Header="Stored Procedures">
+        <Grid Margin="10">
+          
+        </Grid>
+      </TabItem>
       <TabItem Header="Logs">
         <Grid Margin="10">
           <TextBox Name="txtLogs" 
