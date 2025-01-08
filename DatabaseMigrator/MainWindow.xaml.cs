@@ -6,6 +6,8 @@ using System.IO;
 using DatabaseMigrator.Helpers;
 using Newtonsoft.Json;
 using MessageBox = System.Windows.MessageBox;
+using Oracle.ManagedDataAccess.Client;
+using Npgsql;
 
 namespace DatabaseMigrator
 {
@@ -18,6 +20,10 @@ namespace DatabaseMigrator
         {
             InitializeComponent();
             LoadSavedCredentials();
+            
+            // Wire up button click events
+            btnTestOracle.Click += BtnTestOracle_Click;
+            btnTestPostgres.Click += BtnTestPostgres_Click;
         }
 
         private void LoadSavedCredentials()
@@ -113,6 +119,65 @@ namespace DatabaseMigrator
             catch (Exception ex)
             {
                 MessageBox.Show($"Error saving credentials: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LogMessage(string message)
+        {
+            string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            txtLogs.AppendText($"[{timestamp}] {message}{Environment.NewLine}");
+            txtLogs.ScrollToEnd();
+        }
+
+        private async void BtnTestOracle_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                btnTestOracle.IsEnabled = false;
+                LogMessage("Testing Oracle connection...");
+                
+                // Build the connection string
+                string connectionString = $"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={txtOracleServer.Text})(PORT={txtOraclePort.Text}))(CONNECT_DATA=(SERVICE_NAME={txtOracleServiceName.Text})));User Id={txtOracleUser.Text};Password={pwdOraclePassword.Password};";
+                
+                using (var connection = new OracleConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+                    LogMessage("Oracle connection successful! ✓");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogMessage($"Oracle connection failed: {ex.Message} ✗");
+            }
+            finally
+            {
+                btnTestOracle.IsEnabled = true;
+            }
+        }
+
+        private async void BtnTestPostgres_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                btnTestPostgres.IsEnabled = false;
+                LogMessage("Testing PostgreSQL connection...");
+                
+                // Build the connection string
+                string connectionString = $"Host={txtPostgresServer.Text};Port={txtPostgresPort.Text};Database={txtPostgresDatabase.Text};Username={txtPostgresUser.Text};Password={pwdPostgresPassword.Password}";
+                
+                using (var connection = new NpgsqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+                    LogMessage("PostgreSQL connection successful! ✓");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogMessage($"PostgreSQL connection failed: {ex.Message} ✗");
+            }
+            finally
+            {
+                btnTestPostgres.IsEnabled = true;
             }
         }
 

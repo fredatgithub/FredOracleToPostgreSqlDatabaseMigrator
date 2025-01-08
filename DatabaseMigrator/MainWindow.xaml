@@ -94,7 +94,12 @@
             </TabItem>
             <TabItem Header="Logs">
                 <Grid Margin="10">
-                    <TextBlock Text="Migration logs will appear here" />
+                    <TextBox Name="txtLogs" 
+                             IsReadOnly="True"
+                             TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"
+                             AcceptsReturn="True"
+                             FontFamily="Consolas"/>
                 </Grid>
             </TabItem>
         </TabControl>
