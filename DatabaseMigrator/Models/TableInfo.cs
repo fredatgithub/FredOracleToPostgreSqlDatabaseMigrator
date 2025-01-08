@@ -2,12 +2,15 @@ using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace DatabaseMigrator.Models
 {
     public class TableInfo : INotifyPropertyChanged
     {
         private bool _isSelected;
+        private SolidColorBrush _background;
+        
         public string TableName { get; set; }
         public long RowCount { get; set; }
         
@@ -39,6 +42,19 @@ namespace DatabaseMigrator.Models
                             }
                         }
                     }));
+                }
+            }
+        }
+
+        public SolidColorBrush Background
+        {
+            get => _background;
+            set
+            {
+                if (_background != value)
+                {
+                    _background = value;
+                    OnPropertyChanged(nameof(Background));
                 }
             }
         }

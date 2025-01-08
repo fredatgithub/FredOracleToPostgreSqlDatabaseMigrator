@@ -124,19 +124,21 @@
               <ListView Grid.Row="1" 
                                       Name="lstOracleTables"
                                       Margin="0,0,0,10">
-                <ListView.View>
-                  <GridView>
-                    <GridViewColumn Header="Select">
-                      <GridViewColumn.CellTemplate>
-                        <DataTemplate>
-                          <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"/>
-                        </DataTemplate>
-                      </GridViewColumn.CellTemplate>
-                    </GridViewColumn>
-                    <GridViewColumn Header="Table Name" Width="200" DisplayMemberBinding="{Binding TableName}"/>
-                    <GridViewColumn Header="Rows" Width="100" DisplayMemberBinding="{Binding RowCount}"/>
-                  </GridView>
-                </ListView.View>
+                <ListView.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                      <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding TableName}" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding RowCount}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ListView.ItemTemplate>
+                <ListView.ItemContainerStyle>
+                  <Style TargetType="ListViewItem">
+                    <Setter Property="Background" Value="{Binding Background}"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                  </Style>
+                </ListView.ItemContainerStyle>
               </ListView>
 
               <StackPanel Grid.Row="2" Orientation="Horizontal">
@@ -171,19 +173,21 @@
               <ListView Grid.Row="1" 
                                       Name="lstPostgresTables"
                                       Margin="0,0,0,10">
-                <ListView.View>
-                  <GridView>
-                    <GridViewColumn Header="Select">
-                      <GridViewColumn.CellTemplate>
-                        <DataTemplate>
-                          <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"/>
-                        </DataTemplate>
-                      </GridViewColumn.CellTemplate>
-                    </GridViewColumn>
-                    <GridViewColumn Header="Table Name" Width="200" DisplayMemberBinding="{Binding TableName}"/>
-                    <GridViewColumn Header="Rows" Width="100" DisplayMemberBinding="{Binding RowCount}"/>
-                  </GridView>
-                </ListView.View>
+                <ListView.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                      <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding TableName}" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding RowCount}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ListView.ItemTemplate>
+                <ListView.ItemContainerStyle>
+                  <Style TargetType="ListViewItem">
+                    <Setter Property="Background" Value="{Binding Background}"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                  </Style>
+                </ListView.ItemContainerStyle>
               </ListView>
 
               <StackPanel Grid.Row="2" Orientation="Horizontal">

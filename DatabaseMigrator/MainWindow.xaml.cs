@@ -127,6 +127,8 @@ namespace DatabaseMigrator
           lstOracleTables.ItemsSource = tables;
           LogMessage($"Successfully loaded {tables.Count} Oracle tables ✓");
           SetButtonSuccess(btnLoadOracleTables);
+          
+          CompareTables();
         }
 
         loadingWindow.Close();
@@ -180,6 +182,8 @@ namespace DatabaseMigrator
           lstPostgresTables.ItemsSource = tables;
           LogMessage($"Successfully loaded {tables.Count} PostgreSQL tables ✓");
           SetButtonSuccess(btnLoadPostgresTables);
+          
+          CompareTables();
         }
 
         loadingWindow.Close();
@@ -188,6 +192,36 @@ namespace DatabaseMigrator
       {
         LogMessage($"Failed to load PostgreSQL tables: {ex.Message}");
         SetButtonError(btnLoadPostgresTables);
+      }
+    }
+
+    private void CompareTables()
+    {
+      if (lstOracleTables.ItemsSource == null || lstPostgresTables.ItemsSource == null)
+        return;
+
+      var oracleTables = lstOracleTables.ItemsSource.Cast<TableInfo>();
+      var postgresTables = lstPostgresTables.ItemsSource.Cast<TableInfo>();
+
+      // Réinitialiser les couleurs
+      foreach (var table in oracleTables.Concat(postgresTables))
+      {
+        table.Background = null;
+      }
+
+      // Comparer les tables
+      foreach (var oracleTable in oracleTables)
+      {
+        var postgresTable = postgresTables.FirstOrDefault(t => t.TableName.Equals(oracleTable.TableName, StringComparison.OrdinalIgnoreCase));
+        if (postgresTable != null)
+        {
+          var color = oracleTable.RowCount == postgresTable.RowCount
+            ? new SolidColorBrush(Colors.LightGreen)
+            : new SolidColorBrush(Colors.LightPink);
+
+          oracleTable.Background = color;
+          postgresTable.Background = color;
+        }
       }
     }
 
