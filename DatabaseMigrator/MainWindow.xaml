@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DatabaseMigrator"
         mc:Ignorable="d"
-        Title="Fred's Oracle to PostgreSQL Database Migrator" Height="532" Width="800"
+        Title="Fred's Oracle to PostgreSQL Database Migrator" Height="629" Width="800"
         Loaded="Window_Loaded"
         Closing="Window_Closing"
         WindowStartupLocation="Manual">
@@ -38,7 +38,7 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <GroupBox Header="Oracle Connection" Grid.Column="0" Margin="0,0,5,0">
+                    <GroupBox Header="Oracle Connection" Grid.Column="0" Margin="10" Height="420">
                         <StackPanel Margin="10">
                             <Label Content="Server:" Name="lblOracleServer"/>
                             <TextBox Margin="0,0,0,10" Name="txtOracleServer"/>
@@ -62,7 +62,7 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <GroupBox Header="PostgreSQL Connection" Grid.Column="1" Margin="5,0,0,0">
+                    <GroupBox Header="PostgreSQL Connection" Grid.Column="1" Margin="10" Height="420">
                         <StackPanel Margin="10">
                             <Label Content="Server:" Name="lblPostgresServer"/>
                             <TextBox Margin="0,0,0,10" Name="txtPostgresServer"/>
@@ -70,19 +70,14 @@
                             <TextBox Margin="0,0,0,10" Name="txtPostgresPort" Text="5432"/>
                             <Label Content="Database:" Name="lblPostgresDatabase"/>
                             <TextBox Margin="0,0,0,10" Name="txtPostgresDatabase"/>
+                            <Label Content="Schema:" Name="lblPostgresSchema"/>
+                            <TextBox Margin="0,0,0,10" Name="txtPostgresSchema" Text="public"/>
                             <Label Content="Username:" Name="lblPostgresUser"/>
                             <TextBox Margin="0,0,0,10" Name="txtPostgresUser"/>
                             <Label Content="Password:" Name="lblPostgresPassword"/>
                             <PasswordBox Margin="0,0,0,10" Name="pwdPostgresPassword"/>
-                            <Button Content="Test Connection" 
-                                    Margin="0,10,0,0" 
-                                    Padding="10,5"
-                                    Background="#FF007ACC"
-                                    Foreground="White"
-                                    Name="btnTestPostgres"/>
-                            <CheckBox Content="Save Credentials" 
-                                    Margin="0,10,0,0"
-                                    Name="chkSavePostgres"/>
+                            <CheckBox Content="Save Credentials" Name="chkSavePostgres" Margin="0,0,0,10"/>
+                            <Button Content="Test Connection" Name="btnTestPostgres" Click="BtnTestPostgres_Click"/>
                         </StackPanel>
                     </GroupBox>
                 </Grid>
@@ -120,8 +115,15 @@
                                       Margin="0,0,0,10">
                                 <ListView.View>
                                     <GridView>
-                                        <GridViewColumn Header="Table Name" Width="200"/>
-                                        <GridViewColumn Header="Rows" Width="100"/>
+                                        <GridViewColumn Header="Select">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"/>
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Table Name" Width="200" DisplayMemberBinding="{Binding TableName}"/>
+                                        <GridViewColumn Header="Rows" Width="100" DisplayMemberBinding="{Binding RowCount}"/>
                                     </GridView>
                                 </ListView.View>
                             </ListView>
@@ -160,8 +162,15 @@
                                       Margin="0,0,0,10">
                                 <ListView.View>
                                     <GridView>
-                                        <GridViewColumn Header="Table Name" Width="200"/>
-                                        <GridViewColumn Header="Rows" Width="100"/>
+                                        <GridViewColumn Header="Select">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"/>
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Table Name" Width="200" DisplayMemberBinding="{Binding TableName}"/>
+                                        <GridViewColumn Header="Rows" Width="100" DisplayMemberBinding="{Binding RowCount}"/>
                                     </GridView>
                                 </ListView.View>
                             </ListView>

@@ -4,7 +4,9 @@ using Npgsql;
 using Oracle.ManagedDataAccess.Client;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -42,12 +44,12 @@ namespace DatabaseMigrator
 
     private void LstOracleTables_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
-      txtOracleSelectedCount.Text = lstOracleTables.SelectedItems.Count.ToString();
+      UpdateOracleSelectedCount();
     }
 
     private void LstPostgresTables_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
-      txtPostgresSelectedCount.Text = lstPostgresTables.SelectedItems.Count.ToString();
+      UpdatePostgresSelectedCount();
     }
 
     private void TxtOracleSearch_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
@@ -162,9 +164,11 @@ namespace DatabaseMigrator
                   pg_catalog.pg_tables t
                   JOIN pg_catalog.pg_stat_user_tables s ON s.relname = t.tablename
               WHERE 
-                  schemaname = 'public'
+                  schemaname = :schema
               ORDER BY 
                   tablename";
+
+            cmd.Parameters.AddWithValue("schema", txtPostgresSchema.Text);
 
             using (var reader = await cmd.ExecuteReaderAsync())
             {
@@ -225,6 +229,7 @@ namespace DatabaseMigrator
             txtPostgresServer.Text = pgCredentials.Server;
             txtPostgresPort.Text = pgCredentials.Port;
             txtPostgresDatabase.Text = pgCredentials.Database;
+            txtPostgresSchema.Text = pgCredentials.Schema;
             txtPostgresUser.Text = pgCredentials.Username;
             pwdPostgresPassword.Password = pgCredentials.Password;
             chkSavePostgres.IsChecked = true;
@@ -270,6 +275,7 @@ namespace DatabaseMigrator
             Server = txtPostgresServer.Text,
             Port = txtPostgresPort.Text,
             Database = txtPostgresDatabase.Text,
+            Schema = txtPostgresSchema.Text,
             Username = txtPostgresUser.Text,
             Password = pwdPostgresPassword.Password
           };
@@ -471,19 +477,57 @@ namespace DatabaseMigrator
       SaveLogs();
     }
 
+    private void UpdateOracleSelectedCount()
+    {
+      if (lstOracleTables.ItemsSource is IEnumerable<TableInfo> tables)
+      {
+        txtOracleSelectedCount.Text = tables.Count(t => t.IsSelected).ToString();
+      }
+    }
+
+    private void UpdatePostgresSelectedCount()
+    {
+      if (lstPostgresTables.ItemsSource is IEnumerable<TableInfo> tables)
+      {
+        txtPostgresSelectedCount.Text = tables.Count(t => t.IsSelected).ToString();
+      }
+    }
+
     public class DbCredentials
     {
       public string Server { get; set; }
       public string Port { get; set; }
       public string Database { get; set; }
+      public string Schema { get; set; }
       public string Username { get; set; }
       public string Password { get; set; }
     }
 
-    public class TableInfo
+    public class TableInfo : INotifyPropertyChanged
     {
+      private bool _isSelected;
       public string TableName { get; set; }
       public long RowCount { get; set; }
+      
+      public bool IsSelected
+      {
+        get => _isSelected;
+        set
+        {
+          if (_isSelected != value)
+          {
+            _isSelected = value;
+            OnPropertyChanged(nameof(IsSelected));
+          }
+        }
+      }
+
+      public event PropertyChangedEventHandler PropertyChanged;
+
+      protected virtual void OnPropertyChanged(string propertyName)
+      {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+      }
     }
   }
 }
