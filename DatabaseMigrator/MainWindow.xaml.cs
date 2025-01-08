@@ -60,7 +60,7 @@ namespace DatabaseMigrator
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Erreur lors du chargement des identifiants : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Error loading credentials: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -112,7 +112,7 @@ namespace DatabaseMigrator
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Erreur lors de la sauvegarde des identifiants : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Error saving credentials: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
