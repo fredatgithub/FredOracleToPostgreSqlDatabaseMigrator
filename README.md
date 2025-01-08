@@ -3,9 +3,11 @@
 ![Application Screenshot](FredsOracleToPostgreSqlDatabaseMigrator.png)
 
 ## Description
+
 A Windows desktop application for migrating data from Oracle to PostgreSQL databases. Built with WPF (.NET Framework 4.8).
 
 ## Features
+
 - Connection management for both Oracle and PostgreSQL databases
 - Secure credential storage with encryption
 - Table comparison and selection
@@ -15,10 +17,12 @@ A Windows desktop application for migrating data from Oracle to PostgreSQL datab
 - Modern and user-friendly interface
 
 ## Requirements
+
 - Windows OS
 - .NET Framework 4.8
 
 ## Getting Started
+
 1. Configure your Oracle connection settings
 2. Configure your PostgreSQL connection settings
 3. Test both connections
@@ -26,6 +30,7 @@ A Windows desktop application for migrating data from Oracle to PostgreSQL datab
 5. Monitor the process in the Logs tab
 
 ## Security
+
 - All credentials are encrypted before being saved
 - Logs are stored in plain text for easy troubleshooting
 
