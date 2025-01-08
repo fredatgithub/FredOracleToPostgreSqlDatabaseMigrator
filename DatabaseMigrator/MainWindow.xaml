@@ -89,7 +89,90 @@
             </TabItem>
             <TabItem Header="Tables">
                 <Grid Margin="10">
-                    <TextBlock Text="Migration controls will go here" />
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <GroupBox Header="Oracle Tables" Grid.Column="0" Margin="0,0,5,0">
+                        <Grid Margin="10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0">
+                                <Button Content="Load Tables" 
+                                        Name="btnLoadOracleTables"
+                                        Margin="0,0,0,10"
+                                        Padding="10,5"
+                                        Background="#FF007ACC"
+                                        Foreground="White"/>
+                                <TextBox Name="txtOracleSearch" 
+                                         Margin="0,0,0,10"
+                                         Text=""
+                                         ToolTip="Search tables"/>
+                            </StackPanel>
+
+                            <ListView Grid.Row="1" 
+                                      Name="lstOracleTables"
+                                      Margin="0,0,0,10">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Table Name" Width="200"/>
+                                        <GridViewColumn Header="Rows" Width="100"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+
+                            <StackPanel Grid.Row="2" Orientation="Horizontal">
+                                <TextBlock Text="Selected: " VerticalAlignment="Center"/>
+                                <TextBlock Name="txtOracleSelectedCount" Text="0" VerticalAlignment="Center"/>
+                                <TextBlock Text=" table(s)" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox Header="PostgreSQL Tables" Grid.Column="1" Margin="5,0,0,0">
+                        <Grid Margin="10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0">
+                                <Button Content="Load Tables" 
+                                        Name="btnLoadPostgresTables"
+                                        Margin="0,0,0,10"
+                                        Padding="10,5"
+                                        Background="#FF007ACC"
+                                        Foreground="White"/>
+                                <TextBox Name="txtPostgresSearch" 
+                                         Margin="0,0,0,10"
+                                         Text=""
+                                         ToolTip="Search tables"/>
+                            </StackPanel>
+
+                            <ListView Grid.Row="1" 
+                                      Name="lstPostgresTables"
+                                      Margin="0,0,0,10">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Table Name" Width="200"/>
+                                        <GridViewColumn Header="Rows" Width="100"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+
+                            <StackPanel Grid.Row="2" Orientation="Horizontal">
+                                <TextBlock Text="Selected: " VerticalAlignment="Center"/>
+                                <TextBlock Name="txtPostgresSelectedCount" Text="0" VerticalAlignment="Center"/>
+                                <TextBlock Text=" table(s)" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
                 </Grid>
             </TabItem>
             <TabItem Header="Logs">

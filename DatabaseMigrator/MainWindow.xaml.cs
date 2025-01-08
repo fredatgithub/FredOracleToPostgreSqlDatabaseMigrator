@@ -3,8 +3,10 @@ using Newtonsoft.Json;
 using Npgsql;
 using Oracle.ManagedDataAccess.Client;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Windows;
+using System.Windows.Data;
 using MessageBox = System.Windows.MessageBox;
 
 namespace DatabaseMigrator
@@ -13,15 +15,180 @@ namespace DatabaseMigrator
   {
     private readonly string _oracleCredentialsFile = "id_oracle.txt";
     private readonly string _pgCredentialsFile = "id_pg.txt";
+    private readonly string _logFile = "log.txt";
 
     public MainWindow()
     {
       InitializeComponent();
       LoadSavedCredentials();
+      LoadLogs();
 
       // Wire up button click events
       btnTestOracle.Click += BtnTestOracle_Click;
       btnTestPostgres.Click += BtnTestPostgres_Click;
+      btnLoadOracleTables.Click += BtnLoadOracleTables_Click;
+      btnLoadPostgresTables.Click += BtnLoadPostgresTables_Click;
+
+      // Wire up search text changed events
+      txtOracleSearch.TextChanged += TxtOracleSearch_TextChanged;
+      txtPostgresSearch.TextChanged += TxtPostgresSearch_TextChanged;
+
+      // Wire up selection changed events
+      lstOracleTables.SelectionChanged += LstOracleTables_SelectionChanged;
+      lstPostgresTables.SelectionChanged += LstPostgresTables_SelectionChanged;
+    }
+
+    private void LstOracleTables_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+      txtOracleSelectedCount.Text = lstOracleTables.SelectedItems.Count.ToString();
+    }
+
+    private void LstPostgresTables_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+      txtPostgresSelectedCount.Text = lstPostgresTables.SelectedItems.Count.ToString();
+    }
+
+    private void TxtOracleSearch_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+      FilterOracleTables();
+    }
+
+    private void TxtPostgresSearch_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+      FilterPostgresTables();
+    }
+
+    private void FilterOracleTables()
+    {
+      if (lstOracleTables.ItemsSource is System.Collections.IEnumerable items)
+      {
+        var view = System.Windows.Data.CollectionViewSource.GetDefaultView(items);
+        var searchText = txtOracleSearch.Text.ToUpperInvariant();
+        view.Filter = item => string.IsNullOrEmpty(searchText) || 
+                             (item as TableInfo)?.TableName.ToUpperInvariant().Contains(searchText) == true;
+      }
+    }
+
+    private void FilterPostgresTables()
+    {
+      if (lstPostgresTables.ItemsSource is System.Collections.IEnumerable items)
+      {
+        var view = System.Windows.Data.CollectionViewSource.GetDefaultView(items);
+        var searchText = txtPostgresSearch.Text.ToUpperInvariant();
+        view.Filter = item => string.IsNullOrEmpty(searchText) || 
+                             (item as TableInfo)?.TableName.ToUpperInvariant().Contains(searchText) == true;
+      }
+    }
+
+    private async void BtnLoadOracleTables_Click(object sender, RoutedEventArgs e)
+    {
+      try
+      {
+        btnLoadOracleTables.IsEnabled = false;
+        LogMessage("Loading Oracle tables...");
+
+        string connectionString = $"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={txtOracleServer.Text})(PORT={txtOraclePort.Text}))(CONNECT_DATA=(SERVICE_NAME={txtOracleServiceName.Text})));User Id={txtOracleUser.Text};Password={pwdOraclePassword.Password};";
+
+        using (var connection = new OracleConnection(connectionString))
+        {
+          await connection.OpenAsync();
+
+          var tables = new List<TableInfo>();
+          using (var cmd = connection.CreateCommand())
+          {
+            cmd.CommandText = @"
+              SELECT 
+                  table_name, 
+                  num_rows 
+              FROM 
+                  all_tables 
+              WHERE 
+                  owner = :owner 
+              ORDER BY 
+                  table_name";
+            
+            cmd.Parameters.Add(new OracleParameter("owner", txtOracleUser.Text.ToUpper()));
+
+            using (var reader = await cmd.ExecuteReaderAsync())
+            {
+              while (await reader.ReadAsync())
+              {
+                tables.Add(new TableInfo
+                {
+                  TableName = reader.GetString(0),
+                  RowCount = reader.IsDBNull(1) ? 0 : reader.GetInt32(1)
+                });
+              }
+            }
+          }
+
+          lstOracleTables.ItemsSource = tables;
+          LogMessage($"Loaded {tables.Count} Oracle tables ✓");
+        }
+      }
+      catch (Exception ex)
+      {
+        LogMessage($"Failed to load Oracle tables: {ex.Message} ✗");
+      }
+      finally
+      {
+        btnLoadOracleTables.IsEnabled = true;
+      }
+    }
+
+    private async void BtnLoadPostgresTables_Click(object sender, RoutedEventArgs e)
+    {
+      try
+      {
+        btnLoadPostgresTables.IsEnabled = false;
+        LogMessage("Loading PostgreSQL tables...");
+
+        string connectionString = $"Host={txtPostgresServer.Text};Port={txtPostgresPort.Text};Database={txtPostgresDatabase.Text};Username={txtPostgresUser.Text};Password={pwdPostgresPassword.Password}";
+
+        using (var connection = new NpgsqlConnection(connectionString))
+        {
+          await connection.OpenAsync();
+
+          var tables = new List<TableInfo>();
+          using (var cmd = connection.CreateCommand())
+          {
+            cmd.CommandText = @"
+              SELECT 
+                  tablename,
+                  n_live_tup
+              FROM 
+                  pg_catalog.pg_tables t
+                  JOIN pg_catalog.pg_stat_user_tables s ON s.relname = t.tablename
+              WHERE 
+                  schemaname = 'public'
+              ORDER BY 
+                  tablename";
+
+            using (var reader = await cmd.ExecuteReaderAsync())
+            {
+              while (await reader.ReadAsync())
+              {
+                tables.Add(new TableInfo
+                {
+                  TableName = reader.GetString(0),
+                  RowCount = reader.GetInt64(1)
+                });
+              }
+            }
+          }
+
+          lstPostgresTables.ItemsSource = tables;
+          LogMessage($"Loaded {tables.Count} PostgreSQL tables ✓");
+        }
+      }
+      catch (Exception ex)
+      {
+        LogMessage($"Failed to load PostgreSQL tables: {ex.Message} ✗");
+      }
+      finally
+      {
+        btnLoadPostgresTables.IsEnabled = true;
+      }
     }
 
     private void LoadSavedCredentials()
@@ -117,6 +284,34 @@ namespace DatabaseMigrator
       catch (Exception ex)
       {
         MessageBox.Show($"Error saving credentials: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+      }
+    }
+
+    private void LoadLogs()
+    {
+      try
+      {
+        if (File.Exists(_logFile))
+        {
+          txtLogs.Text = File.ReadAllText(_logFile);
+          txtLogs.ScrollToEnd();
+        }
+      }
+      catch (Exception ex)
+      {
+        MessageBox.Show($"Error loading logs: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+      }
+    }
+
+    private void SaveLogs()
+    {
+      try
+      {
+        File.WriteAllText(_logFile, txtLogs.Text);
+      }
+      catch (Exception ex)
+      {
+        MessageBox.Show($"Error saving logs: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
       }
     }
 
@@ -248,6 +443,9 @@ namespace DatabaseMigrator
 
       // Sauvegarder les identifiants
       SaveCredentials();
+      
+      // Sauvegarder les logs
+      SaveLogs();
     }
 
     public class DbCredentials
@@ -257,6 +455,12 @@ namespace DatabaseMigrator
       public string Database { get; set; }
       public string Username { get; set; }
       public string Password { get; set; }
+    }
+
+    public class TableInfo
+    {
+      public string TableName { get; set; }
+      public long RowCount { get; set; }
     }
   }
 }
