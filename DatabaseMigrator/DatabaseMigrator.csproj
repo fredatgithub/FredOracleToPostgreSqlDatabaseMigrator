@@ -133,6 +133,10 @@
     </Compile>
     <Compile Include="Helpers\EncryptionHelper.cs" />
     <Compile Include="Models\DbCredentials.cs" />
+    <Compile Include="Models\IOracleService.cs" />
+    <Compile Include="Models\IPostgresService.cs" />
+    <Compile Include="Models\OracleService.cs" />
+    <Compile Include="Models\PostgresService.cs" />
     <Compile Include="Models\TableInfo.cs" />
     <Compile Include="Views\LoadingWindow.xaml.cs">
       <DependentUpon>LoadingWindow.xaml</DependentUpon>

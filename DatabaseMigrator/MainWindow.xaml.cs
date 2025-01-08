@@ -617,7 +617,7 @@ namespace DatabaseMigrator
           IsSelected = false
         }).OrderBy(p => p.ProcedureName).ToList();
 
-        LogMessage($"Loaded {procedures.Count} PostgreSQL stored procedures.");
+        LogMessage($"Loaded {procedures.Count()} PostgreSQL stored procedures.");
       }
       catch (Exception ex)
       {
