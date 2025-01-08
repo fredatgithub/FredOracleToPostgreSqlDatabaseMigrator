@@ -42,22 +42,22 @@ namespace DatabaseMigrator
       lstPostgresTables.SelectionChanged += LstPostgresTables_SelectionChanged;
     }
 
-    private void LstOracleTables_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    private void LstOracleTables_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
       UpdateOracleSelectedCount();
     }
 
-    private void LstPostgresTables_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    private void LstPostgresTables_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
       UpdatePostgresSelectedCount();
     }
 
-    private void TxtOracleSearch_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    private void TxtOracleSearch_TextChanged(object sender, TextChangedEventArgs e)
     {
       FilterOracleTables();
     }
 
-    private void TxtPostgresSearch_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    private void TxtPostgresSearch_TextChanged(object sender, TextChangedEventArgs e)
     {
       FilterPostgresTables();
     }
@@ -66,7 +66,7 @@ namespace DatabaseMigrator
     {
       if (lstOracleTables.ItemsSource is System.Collections.IEnumerable items)
       {
-        var view = System.Windows.Data.CollectionViewSource.GetDefaultView(items);
+        var view = CollectionViewSource.GetDefaultView(items);
         var searchText = txtOracleSearch.Text.ToUpperInvariant();
         view.Filter = item => string.IsNullOrEmpty(searchText) || 
                              (item as TableInfo)?.TableName.ToUpperInvariant().Contains(searchText) == true;
@@ -77,7 +77,7 @@ namespace DatabaseMigrator
     {
       if (lstPostgresTables.ItemsSource is System.Collections.IEnumerable items)
       {
-        var view = System.Windows.Data.CollectionViewSource.GetDefaultView(items);
+        var view = CollectionViewSource.GetDefaultView(items);
         var searchText = txtPostgresSearch.Text.ToUpperInvariant();
         view.Filter = item => string.IsNullOrEmpty(searchText) || 
                              (item as TableInfo)?.TableName.ToUpperInvariant().Contains(searchText) == true;
@@ -332,17 +332,17 @@ namespace DatabaseMigrator
 
     private void ResetButtonColor(Button button)
     {
-      button.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x00, 0x7A, 0xCC));
+      button.Background = new SolidColorBrush(Color.FromRgb(0x00, 0x7A, 0xCC));
     }
 
     private void SetButtonSuccess(Button button)
     {
-      button.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 167, 69));
+      button.Background = new SolidColorBrush(Color.FromRgb(40, 167, 69));
     }
 
     private void SetButtonError(Button button)
     {
-      button.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 53, 69));
+      button.Background = new SolidColorBrush(Color.FromRgb(220, 53, 69));
     }
 
     private async void BtnTestOracle_Click(object sender, RoutedEventArgs e)
@@ -411,7 +411,7 @@ namespace DatabaseMigrator
       // Si c'est la première fois que l'application est lancée, centrer la fenêtre
       if (settings.WindowTop == 0 && settings.WindowLeft == 0)
       {
-        WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen;
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
       }
       else
       {
@@ -442,12 +442,12 @@ namespace DatabaseMigrator
         }
         else
         {
-          WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen;
+          WindowStartupLocation = WindowStartupLocation.CenterScreen;
         }
       }
     }
 
-    private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+    private void Window_Closing(object sender, CancelEventArgs e)
     {
       // Sauvegarder la position et la taille de la fenêtre
       var settings = Properties.Settings.Default;
