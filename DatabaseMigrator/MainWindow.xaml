@@ -9,191 +9,197 @@
         Loaded="Window_Loaded"
         Closing="Window_Closing"
         WindowStartupLocation="Manual">
-    <Window.Resources>
-        <Style TargetType="{x:Type Control}">
-            <Setter Property="FontSize" Value="14"/>
-        </Style>
-        <Style TargetType="{x:Type TextBlock}">
-            <Setter Property="FontSize" Value="14"/>
-        </Style>
-    </Window.Resources>
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-        
-        <StackPanel Grid.Row="0" Margin="10">
+  <Window.Resources>
+    <Style TargetType="{x:Type Control}">
+      <Setter Property="FontSize" Value="14"/>
+    </Style>
+    <Style TargetType="{x:Type TextBlock}">
+      <Setter Property="FontSize" Value="14"/>
+    </Style>
+  </Window.Resources>
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <StackPanel Grid.Row="0" Margin="10">
       <TextBlock Text="Oracle to PostgreSQL Database Migrator" 
                        FontSize="28" 
                        FontWeight="Bold" 
                        Margin="0,0,0,10"/>
-        </StackPanel>
-        
-        <TabControl Grid.Row="1" Margin="10">
-            <TabItem Header="Connection">
-                <Grid Margin="10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+    </StackPanel>
 
-                    <GroupBox Header="Oracle Connection" Grid.Column="0" Margin="10" Height="420">
-                        <StackPanel Margin="10">
-                            <Label Content="Server:" Name="lblOracleServer"/>
-                            <TextBox Margin="0,0,0,10" Name="txtOracleServer"/>
-                            <Label Content="Port:" Name="lblOraclePort"/>
-                            <TextBox Margin="0,0,0,10" Name="txtOraclePort" Text="1521"/>
-                            <Label Content="Service Name:" Name="lblOracleServiceName"/>
-                            <TextBox Margin="0,0,0,10" Name="txtOracleServiceName"/>
-                            <Label Content="Username:" Name="lblOracleUser"/>
-                            <TextBox Margin="0,0,0,10" Name="txtOracleUser"/>
-                            <Label Content="Password:" Name="lblOraclePassword"/>
-                            <PasswordBox Margin="0,0,0,10" Name="pwdOraclePassword"/>
-                            <Button Content="Test Connection" 
+    <TabControl Grid.Row="1" Margin="10">
+      <TabItem Header="Connection">
+        <Grid Margin="10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+
+          <GroupBox Header="Oracle Connection" Grid.Column="0" Margin="10" Height="420">
+            <StackPanel Margin="10">
+              <Label Content="Server:" Name="lblOracleServer"/>
+              <TextBox Margin="0,0,0,10" Name="txtOracleServer"/>
+              <Label Content="Port:" Name="lblOraclePort"/>
+              <TextBox Margin="0,0,0,10" Name="txtOraclePort" Text="1521"/>
+              <Label Content="Service Name:" Name="lblOracleServiceName"/>
+              <TextBox Margin="0,0,0,10" Name="txtOracleServiceName"/>
+              <Label Content="Username:" Name="lblOracleUser"/>
+              <TextBox Margin="0,0,0,10" Name="txtOracleUser"/>
+              <Label Content="Password:" Name="lblOraclePassword"/>
+              <PasswordBox Margin="0,0,0,10" Name="pwdOraclePassword"/>
+              <Button Content="Test Connection" 
                                     Margin="0,10,0,0" 
                                     Padding="10,5"
                                     Background="#FF007ACC"
                                     Foreground="White"
                                     Name="btnTestOracle"/>
-                            <CheckBox Content="Save Credentials" 
+              <CheckBox Content="Save Credentials" 
                                     Margin="0,10,0,0"
                                     Name="chkSaveOracle"/>
-                        </StackPanel>
-                    </GroupBox>
+            </StackPanel>
+          </GroupBox>
 
-                    <GroupBox Header="PostgreSQL Connection" Grid.Column="1" Margin="10" Height="420">
-                        <StackPanel Margin="10">
-                            <Label Content="Server:" Name="lblPostgresServer"/>
-                            <TextBox Margin="0,0,0,10" Name="txtPostgresServer"/>
-                            <Label Content="Port:" Name="lblPostgresPort"/>
-                            <TextBox Margin="0,0,0,10" Name="txtPostgresPort" Text="5432"/>
-                            <Label Content="Database:" Name="lblPostgresDatabase"/>
-                            <TextBox Margin="0,0,0,10" Name="txtPostgresDatabase"/>
-                            <Label Content="Schema:" Name="lblPostgresSchema"/>
-                            <TextBox Margin="0,0,0,10" Name="txtPostgresSchema" Text="public"/>
-                            <Label Content="Username:" Name="lblPostgresUser"/>
-                            <TextBox Margin="0,0,0,10" Name="txtPostgresUser"/>
-                            <Label Content="Password:" Name="lblPostgresPassword"/>
-                            <PasswordBox Margin="0,0,0,10" Name="pwdPostgresPassword"/>
-                            <CheckBox Content="Save Credentials" Name="chkSavePostgres" Margin="0,0,0,10"/>
-                            <Button Content="Test Connection" Name="btnTestPostgres" Click="BtnTestPostgres_Click"/>
-                        </StackPanel>
-                    </GroupBox>
-                </Grid>
-            </TabItem>
-            <TabItem Header="Tables">
-                <Grid Margin="10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+          <GroupBox Header="PostgreSQL Connection" Grid.Column="1" Margin="10" Height="420">
+            <StackPanel Margin="10">
+              <Label Content="Server:" Name="lblPostgresServer"/>
+              <TextBox Margin="0,0,0,10" Name="txtPostgresServer"/>
+              <Label Content="Port:" Name="lblPostgresPort"/>
+              <TextBox Margin="0,0,0,10" Name="txtPostgresPort" Text="5432"/>
+              <Label Content="Database:" Name="lblPostgresDatabase"/>
+              <TextBox Margin="0,0,0,10" Name="txtPostgresDatabase"/>
+              <Label Content="Schema:" Name="lblPostgresSchema"/>
+              <TextBox Margin="0,0,0,10" Name="txtPostgresSchema" Text="public"/>
+              <Label Content="Username:" Name="lblPostgresUser"/>
+              <TextBox Margin="0,0,0,10" Name="txtPostgresUser"/>
+              <Label Content="Password:" Name="lblPostgresPassword"/>
+              <PasswordBox Margin="0,0,0,10" Name="pwdPostgresPassword"/>
+              <CheckBox Content="Save Credentials" Name="chkSavePostgres" Margin="0,0,0,10"/>
+              <Button Content="Test Connection" 
+                                    Margin="0,10,0,0" 
+                                    Padding="10,5"
+                                    Background="#FF007ACC"
+                                    Foreground="White"
+                                    Name="btnTestPostgres" 
+                                    Click="BtnTestPostgres_Click"/>
+            </StackPanel>
+          </GroupBox>
+        </Grid>
+      </TabItem>
+      <TabItem Header="Tables">
+        <Grid Margin="10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
 
-                    <GroupBox Header="Oracle Tables" Grid.Column="0" Margin="0,0,5,0">
-                        <Grid Margin="10">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+          <GroupBox Header="Oracle Tables" Grid.Column="0" Margin="0,0,5,0">
+            <Grid Margin="10">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
 
-                            <StackPanel Grid.Row="0">
-                                <Button Content="Load Tables" 
+              <StackPanel Grid.Row="0">
+                <Button Content="Load Tables" 
                                         Name="btnLoadOracleTables"
                                         Margin="0,0,0,10"
                                         Padding="10,5"
                                         Background="#FF007ACC"
                                         Foreground="White"/>
-                                <TextBox Name="txtOracleSearch" 
+                <TextBox Name="txtOracleSearch" 
                                          Margin="0,0,0,10"
                                          Text=""
                                          ToolTip="Search tables"/>
-                            </StackPanel>
+              </StackPanel>
 
-                            <ListView Grid.Row="1" 
+              <ListView Grid.Row="1" 
                                       Name="lstOracleTables"
                                       Margin="0,0,0,10">
-                                <ListView.View>
-                                    <GridView>
-                                        <GridViewColumn Header="Select">
-                                            <GridViewColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"/>
-                                                </DataTemplate>
-                                            </GridViewColumn.CellTemplate>
-                                        </GridViewColumn>
-                                        <GridViewColumn Header="Table Name" Width="200" DisplayMemberBinding="{Binding TableName}"/>
-                                        <GridViewColumn Header="Rows" Width="100" DisplayMemberBinding="{Binding RowCount}"/>
-                                    </GridView>
-                                </ListView.View>
-                            </ListView>
+                <ListView.View>
+                  <GridView>
+                    <GridViewColumn Header="Select">
+                      <GridViewColumn.CellTemplate>
+                        <DataTemplate>
+                          <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"/>
+                        </DataTemplate>
+                      </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="Table Name" Width="200" DisplayMemberBinding="{Binding TableName}"/>
+                    <GridViewColumn Header="Rows" Width="100" DisplayMemberBinding="{Binding RowCount}"/>
+                  </GridView>
+                </ListView.View>
+              </ListView>
 
-                            <StackPanel Grid.Row="2" Orientation="Horizontal">
-                                <TextBlock Text="Selected: " VerticalAlignment="Center"/>
-                                <TextBlock Name="txtOracleSelectedCount" Text="0" VerticalAlignment="Center"/>
-                                <TextBlock Text=" table(s)" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Grid>
-                    </GroupBox>
+              <StackPanel Grid.Row="2" Orientation="Horizontal">
+                <TextBlock Text="Selected: " VerticalAlignment="Center"/>
+                <TextBlock Name="txtOracleSelectedCount" Text="0" VerticalAlignment="Center"/>
+                <TextBlock Text=" table(s)" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Grid>
+          </GroupBox>
 
-                    <GroupBox Header="PostgreSQL Tables" Grid.Column="1" Margin="5,0,0,0">
-                        <Grid Margin="10">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+          <GroupBox Header="PostgreSQL Tables" Grid.Column="1" Margin="5,0,0,0">
+            <Grid Margin="10">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
 
-                            <StackPanel Grid.Row="0">
-                                <Button Content="Load Tables" 
+              <StackPanel Grid.Row="0">
+                <Button Content="Load Tables" 
                                         Name="btnLoadPostgresTables"
                                         Margin="0,0,0,10"
                                         Padding="10,5"
                                         Background="#FF007ACC"
                                         Foreground="White"/>
-                                <TextBox Name="txtPostgresSearch" 
+                <TextBox Name="txtPostgresSearch" 
                                          Margin="0,0,0,10"
                                          Text=""
                                          ToolTip="Search tables"/>
-                            </StackPanel>
+              </StackPanel>
 
-                            <ListView Grid.Row="1" 
+              <ListView Grid.Row="1" 
                                       Name="lstPostgresTables"
                                       Margin="0,0,0,10">
-                                <ListView.View>
-                                    <GridView>
-                                        <GridViewColumn Header="Select">
-                                            <GridViewColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"/>
-                                                </DataTemplate>
-                                            </GridViewColumn.CellTemplate>
-                                        </GridViewColumn>
-                                        <GridViewColumn Header="Table Name" Width="200" DisplayMemberBinding="{Binding TableName}"/>
-                                        <GridViewColumn Header="Rows" Width="100" DisplayMemberBinding="{Binding RowCount}"/>
-                                    </GridView>
-                                </ListView.View>
-                            </ListView>
+                <ListView.View>
+                  <GridView>
+                    <GridViewColumn Header="Select">
+                      <GridViewColumn.CellTemplate>
+                        <DataTemplate>
+                          <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"/>
+                        </DataTemplate>
+                      </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="Table Name" Width="200" DisplayMemberBinding="{Binding TableName}"/>
+                    <GridViewColumn Header="Rows" Width="100" DisplayMemberBinding="{Binding RowCount}"/>
+                  </GridView>
+                </ListView.View>
+              </ListView>
 
-                            <StackPanel Grid.Row="2" Orientation="Horizontal">
-                                <TextBlock Text="Selected: " VerticalAlignment="Center"/>
-                                <TextBlock Name="txtPostgresSelectedCount" Text="0" VerticalAlignment="Center"/>
-                                <TextBlock Text=" table(s)" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Grid>
-                    </GroupBox>
-                </Grid>
-            </TabItem>
-            <TabItem Header="Logs">
-                <Grid Margin="10">
-                    <TextBox Name="txtLogs" 
+              <StackPanel Grid.Row="2" Orientation="Horizontal">
+                <TextBlock Text="Selected: " VerticalAlignment="Center"/>
+                <TextBlock Name="txtPostgresSelectedCount" Text="0" VerticalAlignment="Center"/>
+                <TextBlock Text=" table(s)" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Grid>
+          </GroupBox>
+        </Grid>
+      </TabItem>
+      <TabItem Header="Logs">
+        <Grid Margin="10">
+          <TextBox Name="txtLogs" 
                              IsReadOnly="True"
                              TextWrapping="Wrap"
                              VerticalScrollBarVisibility="Auto"
                              AcceptsReturn="True"
                              FontFamily="Consolas"/>
-                </Grid>
-            </TabItem>
-        </TabControl>
-    </Grid>
+        </Grid>
+      </TabItem>
+    </TabControl>
+  </Grid>
 </Window>
