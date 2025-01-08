@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DatabaseMigrator"
         mc:Ignorable="d"
-        Title="Database Migrator" Height="532" Width="800"
+        Title="Fred's Oracle to PostgreSQL Database Migrator" Height="532" Width="800"
         Loaded="Window_Loaded"
         Closing="Window_Closing"
         WindowStartupLocation="Manual">
@@ -24,7 +24,7 @@
         </Grid.RowDefinitions>
         
         <StackPanel Grid.Row="0" Margin="10">
-            <TextBlock Text="Database Migrator" 
+      <TextBlock Text="Oracle to PostgreSQL Database Migrator" 
                        FontSize="28" 
                        FontWeight="Bold" 
                        Margin="0,0,0,10"/>
@@ -43,7 +43,7 @@
                             <Label Content="Serveur :" Name="lblOracleServer"/>
                             <TextBox Margin="0,0,0,10" Name="txtOracleServer"/>
                             <Label Content="Port :" Name="lblOraclePort"/>
-                            <TextBox Margin="0,0,0,10" Name="txtOraclePort"/>
+                            <TextBox Margin="0,0,0,10" Name="txtOraclePort" Text="1521"/>
                             <Label Content="Service Name :" Name="lblOracleServiceName"/>
                             <TextBox Margin="0,0,0,10" Name="txtOracleServiceName"/>
                             <Label Content="Utilisateur :" Name="lblOracleUser"/>
@@ -67,7 +67,7 @@
                             <Label Content="Serveur :" Name="lblPostgresServer"/>
                             <TextBox Margin="0,0,0,10" Name="txtPostgresServer"/>
                             <Label Content="Port :" Name="lblPostgresPort"/>
-                            <TextBox Margin="0,0,0,10" Name="txtPostgresPort"/>
+                            <TextBox Margin="0,0,0,10" Name="txtPostgresPort" Text="5432"/>
                             <Label Content="Base de données :" Name="lblPostgresDatabase"/>
                             <TextBox Margin="0,0,0,10" Name="txtPostgresDatabase"/>
                             <Label Content="Utilisateur :" Name="lblPostgresUser"/>
