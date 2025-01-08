@@ -89,6 +89,7 @@ namespace DatabaseMigrator
       try
       {
         btnLoadOracleTables.IsEnabled = false;
+        ResetButtonColor(btnLoadOracleTables);
         LogMessage("Loading Oracle tables...");
 
         string connectionString = $"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={txtOracleServer.Text})(PORT={txtOraclePort.Text}))(CONNECT_DATA=(SERVICE_NAME={txtOracleServiceName.Text})));User Id={txtOracleUser.Text};Password={pwdOraclePassword.Password};";
@@ -96,43 +97,45 @@ namespace DatabaseMigrator
         using (var connection = new OracleConnection(connectionString))
         {
           await connection.OpenAsync();
-
           var tables = new List<TableInfo>();
+
           using (var cmd = connection.CreateCommand())
           {
             cmd.CommandText = @"
               SELECT 
-                  table_name, 
-                  num_rows 
+                  table_name,
+                  num_rows
               FROM 
                   all_tables 
               WHERE 
-                  owner = :owner 
+                  owner = :owner
               ORDER BY 
                   table_name";
-            
+
             cmd.Parameters.Add(new OracleParameter("owner", txtOracleUser.Text.ToUpper()));
 
             using (var reader = await cmd.ExecuteReaderAsync())
             {
               while (await reader.ReadAsync())
               {
-                tables.Add(new TableInfo
-                {
+                tables.Add(new TableInfo 
+                { 
                   TableName = reader.GetString(0),
-                  RowCount = reader.IsDBNull(1) ? 0 : reader.GetInt32(1)
+                  RowCount = reader.IsDBNull(1) ? 0 : reader.GetInt64(1)
                 });
               }
             }
           }
 
           lstOracleTables.ItemsSource = tables;
-          LogMessage($"Loaded {tables.Count} Oracle tables ✓");
+          LogMessage($"Successfully loaded {tables.Count} Oracle tables ✓");
+          SetButtonSuccess(btnLoadOracleTables);
         }
       }
       catch (Exception ex)
       {
         LogMessage($"Failed to load Oracle tables: {ex.Message} ✗");
+        SetButtonError(btnLoadOracleTables);
       }
       finally
       {
@@ -145,6 +148,7 @@ namespace DatabaseMigrator
       try
       {
         btnLoadPostgresTables.IsEnabled = false;
+        ResetButtonColor(btnLoadPostgresTables);
         LogMessage("Loading PostgreSQL tables...");
 
         string connectionString = $"Host={txtPostgresServer.Text};Port={txtPostgresPort.Text};Database={txtPostgresDatabase.Text};Username={txtPostgresUser.Text};Password={pwdPostgresPassword.Password}";
@@ -152,21 +156,21 @@ namespace DatabaseMigrator
         using (var connection = new NpgsqlConnection(connectionString))
         {
           await connection.OpenAsync();
-
           var tables = new List<TableInfo>();
+
           using (var cmd = connection.CreateCommand())
           {
             cmd.CommandText = @"
               SELECT 
-                  tablename,
-                  n_live_tup
+                  t.tablename,
+                  s.n_live_tup as row_count
               FROM 
                   pg_catalog.pg_tables t
                   JOIN pg_catalog.pg_stat_user_tables s ON s.relname = t.tablename
               WHERE 
-                  schemaname = :schema
+                  t.schemaname = @schema
               ORDER BY 
-                  tablename";
+                  t.tablename";
 
             cmd.Parameters.AddWithValue("schema", txtPostgresSchema.Text);
 
@@ -174,8 +178,8 @@ namespace DatabaseMigrator
             {
               while (await reader.ReadAsync())
               {
-                tables.Add(new TableInfo
-                {
+                tables.Add(new TableInfo 
+                { 
                   TableName = reader.GetString(0),
                   RowCount = reader.GetInt64(1)
                 });
@@ -184,12 +188,14 @@ namespace DatabaseMigrator
           }
 
           lstPostgresTables.ItemsSource = tables;
-          LogMessage($"Loaded {tables.Count} PostgreSQL tables ✓");
+          LogMessage($"Successfully loaded {tables.Count} PostgreSQL tables ✓");
+          SetButtonSuccess(btnLoadPostgresTables);
         }
       }
       catch (Exception ex)
       {
         LogMessage($"Failed to load PostgreSQL tables: {ex.Message} ✗");
+        SetButtonError(btnLoadPostgresTables);
       }
       finally
       {
