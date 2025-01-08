@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
 
 namespace DatabaseMigrator.Models
 {
@@ -22,19 +23,19 @@ namespace DatabaseMigrator.Models
                     // Déclencher la mise à jour du compteur
                     Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        if (Application.Current.MainWindow is MainWindow mainWindow)
+                        var mainWindow = Application.Current.MainWindow;
+                        if (mainWindow != null)
                         {
-                            // Mettre à jour le compteur approprié en fonction de la ListView
-                            var listView = mainWindow.lstOracleTables;
-                            var countText = mainWindow.txtOracleSelectedCount;
-                            
-                            if (listView.Items.Contains(this))
+                            var lstOracleTables = mainWindow.FindName("lstOracleTables") as ListView;
+                            if (lstOracleTables != null && lstOracleTables.Items.Contains(this))
                             {
-                                mainWindow.UpdateOracleSelectedCount();
+                                dynamic window = mainWindow;
+                                window.UpdateOracleSelectedCount();
                             }
                             else
                             {
-                                mainWindow.UpdatePostgresSelectedCount();
+                                dynamic window = mainWindow;
+                                window.UpdatePostgresSelectedCount();
                             }
                         }
                     }));
