@@ -17,7 +17,7 @@
       <Setter Property="FontSize" Value="14"/>
     </Style>
   </Window.Resources>
-  <Grid Margin="0,0,0,-28">
+  <Grid Margin="0,0,0,11">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
@@ -93,7 +93,7 @@
           </GroupBox>
         </Grid>
       </TabItem>
-      <TabItem Header="Tables">
+      <TabItem Header="Tables" Height="20" VerticalAlignment="Top">
         <Grid Margin="10">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
