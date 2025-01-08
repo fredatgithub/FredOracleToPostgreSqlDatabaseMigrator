@@ -13,6 +13,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace DatabaseMigrator
 {
@@ -21,10 +23,14 @@ namespace DatabaseMigrator
     private readonly string _oracleCredentialsFile = "id_oracle.txt";
     private readonly string _pgCredentialsFile = "id_pg.txt";
     private readonly string _logFile = "log.txt";
+    private IOracleService _oracleService;
+    private IPostgresService _postgresService;
 
     public MainWindow()
     {
       InitializeComponent();
+      _oracleService = new OracleService();
+      _postgresService = new PostgresService();
       LoadSavedCredentials();
       LoadLogs();
 
@@ -33,6 +39,8 @@ namespace DatabaseMigrator
       btnTestPostgres.Click += BtnTestPostgres_Click;
       btnLoadOracleTables.Click += BtnLoadOracleTables_Click;
       btnLoadPostgresTables.Click += BtnLoadPostgresTables_Click;
+      btnLoadOracleStoredProcs.Click += BtnLoadOracleStoredProcs_Click;
+      btnLoadPostgresStoredProcs.Click += BtnLoadPostgresStoredProcs_Click;
 
       // Wire up search text changed events
       txtOracleSearch.TextChanged += TxtOracleSearch_TextChanged;
@@ -41,6 +49,8 @@ namespace DatabaseMigrator
       // Wire up selection changed events
       lstOracleTables.SelectionChanged += LstOracleTables_SelectionChanged;
       lstPostgresTables.SelectionChanged += LstPostgresTables_SelectionChanged;
+      lstOracleStoredProcs.SelectionChanged += LstOracleStoredProcs_SelectionChanged;
+      lstPostgresStoredProcs.SelectionChanged += LstPostgresStoredProcs_SelectionChanged;
     }
 
     private void LstOracleTables_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -51,6 +61,16 @@ namespace DatabaseMigrator
     private void LstPostgresTables_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
       UpdatePostgresSelectedCount();
+    }
+
+    private void LstOracleStoredProcs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+      UpdateOracleStoredProcsSelectedCount();
+    }
+
+    private void LstPostgresStoredProcs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+      UpdatePostgresStoredProcsSelectedCount();
     }
 
     private void TxtOracleSearch_TextChanged(object sender, TextChangedEventArgs e)
@@ -530,6 +550,110 @@ namespace DatabaseMigrator
         var selectedCount = tables.Count(t => t.IsSelected);
         txtPostgresSelectedCount.Text = selectedCount.ToString();
         txtPostgresTableLabel.Text = $" table{Plural(selectedCount)}";
+      }
+    }
+
+    private void UpdateOracleStoredProcsSelectedCount()
+    {
+      if (lstOracleStoredProcs.ItemsSource is IEnumerable<StoredProcedureItem> procedures)
+      {
+        var selectedCount = procedures.Count(p => p.IsSelected);
+        txtOracleSelectedProcsCount.Text = selectedCount.ToString();
+        txtOracleProcsLabel.Text = $" stored procedure{Plural(selectedCount)}";
+      }
+    }
+
+    private void UpdatePostgresStoredProcsSelectedCount()
+    {
+      if (lstPostgresStoredProcs.ItemsSource is IEnumerable<StoredProcedureItem> procedures)
+      {
+        var selectedCount = procedures.Count(p => p.IsSelected);
+        txtPostgresSelectedProcsCount.Text = selectedCount.ToString();
+        txtPostgresProcsLabel.Text = $" stored procedure{Plural(selectedCount)}";
+      }
+    }
+
+    private async void BtnLoadOracleStoredProcs_Click(object sender, RoutedEventArgs e)
+    {
+      try
+      {
+        btnLoadOracleStoredProcs.IsEnabled = false;
+        Mouse.OverrideCursor = Cursors.Wait;
+
+        var procedures = await Task.Run(() => _oracleService.GetStoredProcedures());
+        
+        lstOracleStoredProcs.ItemsSource = procedures.Select(p => new StoredProcedureItem 
+        { 
+          ProcedureName = p,
+          IsSelected = false
+        }).OrderBy(p => p.ProcedureName).ToList();
+
+        LogMessage($"Loaded {procedures.Count} Oracle stored procedures.");
+      }
+      catch (Exception ex)
+      {
+        MessageBox.Show($"Error loading Oracle stored procedures: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        LogMessage($"Error loading Oracle stored procedures: {ex.Message}");
+      }
+      finally
+      {
+        btnLoadOracleStoredProcs.IsEnabled = true;
+        Mouse.OverrideCursor = null;
+      }
+    }
+
+    private async void BtnLoadPostgresStoredProcs_Click(object sender, RoutedEventArgs e)
+    {
+      try
+      {
+        btnLoadPostgresStoredProcs.IsEnabled = false;
+        Mouse.OverrideCursor = Cursors.Wait;
+
+        var procedures = await Task.Run(() => _postgresService.GetStoredProcedures());
+        
+        lstPostgresStoredProcs.ItemsSource = procedures.Select(p => new StoredProcedureItem 
+        { 
+          ProcedureName = p,
+          IsSelected = false
+        }).OrderBy(p => p.ProcedureName).ToList();
+
+        LogMessage($"Loaded {procedures.Count} PostgreSQL stored procedures.");
+      }
+      catch (Exception ex)
+      {
+        MessageBox.Show($"Error loading PostgreSQL stored procedures: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        LogMessage($"Error loading PostgreSQL stored procedures: {ex.Message}");
+      }
+      finally
+      {
+        btnLoadPostgresStoredProcs.IsEnabled = true;
+        Mouse.OverrideCursor = null;
+      }
+    }
+
+    public class StoredProcedureItem : INotifyPropertyChanged
+    {
+      private bool _isSelected;
+      public string ProcedureName { get; set; }
+      
+      public bool IsSelected
+      {
+        get => _isSelected;
+        set
+        {
+          if (_isSelected != value)
+          {
+            _isSelected = value;
+            OnPropertyChanged(nameof(IsSelected));
+          }
+        }
+      }
+
+      public event PropertyChangedEventHandler PropertyChanged;
+
+      protected virtual void OnPropertyChanged(string propertyName)
+      {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
       }
     }
   }

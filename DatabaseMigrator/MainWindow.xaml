@@ -220,7 +220,8 @@
                        Margin="0,0,0,10"
                        Padding="10,5"
                        Background="#FF007ACC"
-                       Foreground="White"/>
+                       Foreground="White"
+                       Click="BtnLoadOracleStoredProcs_Click"/>
                 <TextBox Name="txtOracleStoredProcsSearch" 
                         Margin="0,0,0,10"
                         Text=""
@@ -268,7 +269,8 @@
                        Margin="0,0,0,10"
                        Padding="10,5"
                        Background="#FF007ACC"
-                       Foreground="White"/>
+                       Foreground="White"
+                       Click="BtnLoadPostgresStoredProcs_Click"/>
                 <TextBox Name="txtPostgresStoredProcsSearch" 
                         Margin="0,0,0,10"
                         Text=""
