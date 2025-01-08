@@ -1,4 +1,5 @@
 using DatabaseMigrator.Helpers;
+using DatabaseMigrator.Models;
 using Newtonsoft.Json;
 using Npgsql;
 using Oracle.ManagedDataAccess.Client;
@@ -11,7 +12,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
-using MessageBox = System.Windows.MessageBox;
 
 namespace DatabaseMigrator
 {
@@ -502,62 +502,6 @@ namespace DatabaseMigrator
         var selectedCount = tables.Count(t => t.IsSelected);
         txtPostgresSelectedCount.Text = selectedCount.ToString();
         txtPostgresTableLabel.Text = $" table{Plural(selectedCount)}";
-      }
-    }
-
-    public class DbCredentials
-    {
-      public string Server { get; set; }
-      public string Port { get; set; }
-      public string Database { get; set; }
-      public string Schema { get; set; }
-      public string Username { get; set; }
-      public string Password { get; set; }
-    }
-
-    public class TableInfo : INotifyPropertyChanged
-    {
-      private bool _isSelected;
-      public string TableName { get; set; }
-      public long RowCount { get; set; }
-      
-      public bool IsSelected
-      {
-        get => _isSelected;
-        set
-        {
-          if (_isSelected != value)
-          {
-            _isSelected = value;
-            OnPropertyChanged(nameof(IsSelected));
-            // Déclencher la mise à jour du compteur
-            Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-            {
-              if (Application.Current.MainWindow is MainWindow mainWindow)
-              {
-                // Mettre à jour le compteur approprié en fonction de la ListView
-                var listView = mainWindow.lstOracleTables;
-                var countText = mainWindow.txtOracleSelectedCount;
-                
-                if (listView.Items.Contains(this))
-                {
-                  mainWindow.UpdateOracleSelectedCount();
-                }
-                else
-                {
-                  mainWindow.UpdatePostgresSelectedCount();
-                }
-              }
-            }));
-          }
-        }
-      }
-
-      public event PropertyChangedEventHandler PropertyChanged;
-
-      protected virtual void OnPropertyChanged(string propertyName)
-      {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
       }
     }
   }
