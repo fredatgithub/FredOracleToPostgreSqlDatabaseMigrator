@@ -80,8 +80,7 @@ namespace DatabaseMigrator
       {
         var view = CollectionViewSource.GetDefaultView(items);
         var searchText = txtPostgresSearch.Text.ToUpperInvariant();
-        view.Filter = item => string.IsNullOrEmpty(searchText) || 
-                             (item as TableInfo)?.TableName.ToUpperInvariant().Contains(searchText) == true;
+        view.Filter = item => string.IsNullOrEmpty(searchText) || (item as TableInfo)?.TableName.ToUpperInvariant().Contains(searchText) == true;
       }
     }
 
@@ -154,7 +153,7 @@ namespace DatabaseMigrator
 
           using (var cmd = connection.CreateCommand())
           {
-            // D'abord, récupérer la liste des tables
+            // First, get table list
             cmd.CommandText = @"
               SELECT tablename 
               FROM pg_catalog.pg_tables 
@@ -171,7 +170,7 @@ namespace DatabaseMigrator
               }
             }
 
-            // Ensuite, compter les lignes pour chaque table
+            // then count table lines for each table
             foreach (var table in tables)
             {
               cmd.CommandText = $"SELECT COUNT(*) FROM {txtPostgresSchema.Text}.\"{table.TableName}\"";
@@ -188,9 +187,9 @@ namespace DatabaseMigrator
 
         loadingWindow.Close();
       }
-      catch (Exception ex)
+      catch (Exception exception)
       {
-        LogMessage($"Failed to load PostgreSQL tables: {ex.Message}");
+        LogMessage($"Failed to load PostgreSQL tables: {exception.Message}");
         SetButtonError(btnLoadPostgresTables);
       }
     }
@@ -203,13 +202,13 @@ namespace DatabaseMigrator
       var oracleTables = lstOracleTables.ItemsSource.Cast<TableInfo>();
       var postgresTables = lstPostgresTables.ItemsSource.Cast<TableInfo>();
 
-      // Réinitialiser les couleurs
+      // Init colors
       foreach (var table in oracleTables.Concat(postgresTables))
       {
         table.Background = null;
       }
 
-      // Comparer les tables
+      // Compare tables
       foreach (var oracleTable in oracleTables)
       {
         var postgresTable = postgresTables.FirstOrDefault(t => t.TableName.Equals(oracleTable.TableName, StringComparison.OrdinalIgnoreCase));
@@ -229,7 +228,7 @@ namespace DatabaseMigrator
     {
       try
       {
-        // Charger les identifiants Oracle
+        // Load Oracle ID
         if (File.Exists(_oracleCredentialsFile))
         {
           var encryptedOracle = File.ReadAllText(_oracleCredentialsFile);
@@ -246,7 +245,7 @@ namespace DatabaseMigrator
           }
         }
 
-        // Charger les identifiants PostgreSQL
+        // Load PostgreSQL ID
         if (File.Exists(_pgCredentialsFile))
         {
           var encryptedPg = File.ReadAllText(_pgCredentialsFile);
@@ -264,9 +263,9 @@ namespace DatabaseMigrator
           }
         }
       }
-      catch (Exception ex)
+      catch (Exception exception)
       {
-        MessageBox.Show($"Error loading credentials: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        MessageBox.Show($"Error loading credentials: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
       }
     }
 
@@ -274,7 +273,7 @@ namespace DatabaseMigrator
     {
       try
       {
-        // Sauvegarder les identifiants Oracle
+        // Save Oracle ID
         if (chkSaveOracle.IsChecked == true)
         {
           var oracleCredentials = new DbCredentials
@@ -295,7 +294,7 @@ namespace DatabaseMigrator
           File.Delete(_oracleCredentialsFile);
         }
 
-        // Sauvegarder les identifiants PostgreSQL
+        // Save PostgreSQL ID
         if (chkSavePostgres.IsChecked == true)
         {
           var pgCredentials = new DbCredentials
@@ -317,9 +316,9 @@ namespace DatabaseMigrator
           File.Delete(_pgCredentialsFile);
         }
       }
-      catch (Exception ex)
+      catch (Exception exception)
       {
-        MessageBox.Show($"Error saving credentials: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        MessageBox.Show($"Error saving credentials: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
       }
     }
 
@@ -333,9 +332,9 @@ namespace DatabaseMigrator
           txtLogs.ScrollToEnd();
         }
       }
-      catch (Exception ex)
+      catch (Exception exception)
       {
-        MessageBox.Show($"Error loading logs: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        MessageBox.Show($"Error loading logs: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
       }
     }
 
@@ -345,9 +344,9 @@ namespace DatabaseMigrator
       {
         File.WriteAllText(_logFile, txtLogs.Text);
       }
-      catch (Exception ex)
+      catch (Exception exception)
       {
-        MessageBox.Show($"Error saving logs: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        MessageBox.Show($"Error saving logs: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
       }
     }
 
@@ -388,9 +387,9 @@ namespace DatabaseMigrator
           SetButtonSuccess(btnTestOracle);
         }
       }
-      catch (Exception ex)
+      catch (Exception exception)
       {
-        LogMessage($"Oracle connection failed: {ex.Message} ✗");
+        LogMessage($"Oracle connection failed: {exception.Message} ✗");
         SetButtonError(btnTestOracle);
       }
       finally
@@ -414,9 +413,9 @@ namespace DatabaseMigrator
           SetButtonSuccess(btnTestPostgres);
         }
       }
-      catch (Exception ex)
+      catch (Exception exception)
       {
-        LogMessage($"PostgreSQL connection failed: {ex.Message} ✗");
+        LogMessage($"PostgreSQL connection failed: {exception.Message} ✗");
         SetButtonError(btnTestPostgres);
       }
       finally
@@ -437,17 +436,17 @@ namespace DatabaseMigrator
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-      // Restaurer la position et la taille de la fenêtre
+      // Restore window position and size
       var settings = Properties.Settings.Default;
 
-      // Si c'est la première fois que l'application est lancée, centrer la fenêtre
+      // If it's the first time the application is launched, center the window
       if (settings.WindowTop == 0 && settings.WindowLeft == 0)
       {
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
       }
       else
       {
-        // Vérifier si la fenêtre sera visible sur l'écran
+        // Check if the window will be visible on the screen
         bool isVisible = false;
         foreach (var screen in System.Windows.Forms.Screen.AllScreens)
         {
@@ -481,7 +480,7 @@ namespace DatabaseMigrator
 
     private void Window_Closing(object sender, CancelEventArgs e)
     {
-      // Sauvegarder la position et la taille de la fenêtre
+      // Save window position and size
       var settings = Properties.Settings.Default;
 
       if (WindowState == WindowState.Normal)
@@ -502,10 +501,10 @@ namespace DatabaseMigrator
       settings.WindowState = WindowState;
       settings.Save();
 
-      // Sauvegarder les identifiants
+      // Save ID
       SaveCredentials();
       
-      // Sauvegarder les logs
+      // Save logs
       SaveLogs();
     }
 
