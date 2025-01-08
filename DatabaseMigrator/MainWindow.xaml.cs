@@ -104,7 +104,7 @@ namespace DatabaseMigrator
             cmd.CommandText = @"
               SELECT 
                   t.table_name,
-                  NVL(t.num_rows, 0) as row_count
+                  (SELECT COUNT(*) FROM all_objects WHERE owner = t.owner AND object_name = t.table_name) as row_count
               FROM 
                   all_tables t
               WHERE 
@@ -160,13 +160,15 @@ namespace DatabaseMigrator
 
           using (var cmd = connection.CreateCommand())
           {
+            var schema = txtPostgresSchema.Text;
             cmd.CommandText = @"
               SELECT 
                   t.tablename,
-                  COALESCE(s.n_live_tup, 0) as row_count
+                  COALESCE(c.reltuples::bigint, 0) as row_count
               FROM 
                   pg_catalog.pg_tables t
-                  LEFT JOIN pg_catalog.pg_stat_user_tables s ON s.relname = t.tablename
+                  JOIN pg_catalog.pg_class c ON c.relname = t.tablename
+                  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
               WHERE 
                   t.schemaname = @schema
               ORDER BY 
