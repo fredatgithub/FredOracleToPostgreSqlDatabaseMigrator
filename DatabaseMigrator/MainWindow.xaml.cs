@@ -89,7 +89,7 @@ namespace DatabaseMigrator
     {
       try
       {
-        var loadingWindow = new LoadingWindow();
+        var loadingWindow = new LoadingWindow(this);
         loadingWindow.Show();
 
         var tables = new List<TableInfo>();
@@ -142,7 +142,7 @@ namespace DatabaseMigrator
     {
       try
       {
-        var loadingWindow = new LoadingWindow();
+        var loadingWindow = new LoadingWindow(this);
         loadingWindow.Show();
 
         var tables = new List<TableInfo>();
