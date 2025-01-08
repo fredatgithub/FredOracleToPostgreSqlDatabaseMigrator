@@ -101,16 +101,12 @@ namespace DatabaseMigrator
 
           using (var cmd = connection.CreateCommand())
           {
+            // D'abord, récupérer la liste des tables
             cmd.CommandText = @"
-              SELECT 
-                  t.table_name,
-                  (SELECT COUNT(*) FROM all_objects WHERE owner = t.owner AND object_name = t.table_name) as row_count
-              FROM 
-                  all_tables t
-              WHERE 
-                  t.owner = :owner
-              ORDER BY 
-                  t.table_name";
+              SELECT table_name 
+              FROM all_tables 
+              WHERE owner = :owner 
+              ORDER BY table_name";
 
             cmd.Parameters.Add(new OracleParameter("owner", txtOracleUser.Text.ToUpper()));
 
@@ -118,18 +114,21 @@ namespace DatabaseMigrator
             {
               while (await reader.ReadAsync())
               {
-                tables.Add(new TableInfo 
-                { 
-                  TableName = reader.GetString(0),
-                  RowCount = reader.GetInt64(1)
-                });
+                tables.Add(new TableInfo { TableName = reader.GetString(0), RowCount = 0 });
               }
             }
-          }
 
-          lstOracleTables.ItemsSource = tables;
-          LogMessage($"Successfully loaded {tables.Count} Oracle tables ✓");
-          SetButtonSuccess(btnLoadOracleTables);
+            // Ensuite, compter les lignes pour chaque table
+            foreach (var table in tables)
+            {
+              cmd.CommandText = $"SELECT COUNT(*) FROM \"{txtOracleUser.Text.ToUpper()}\".\"{table.TableName}\"";
+              table.RowCount = Convert.ToInt64(await cmd.ExecuteScalarAsync());
+            }
+
+            lstOracleTables.ItemsSource = tables;
+            LogMessage($"Successfully loaded {tables.Count} Oracle tables ✓");
+            SetButtonSuccess(btnLoadOracleTables);
+          }
         }
       }
       catch (Exception ex)
@@ -160,19 +159,12 @@ namespace DatabaseMigrator
 
           using (var cmd = connection.CreateCommand())
           {
-            var schema = txtPostgresSchema.Text;
+            // D'abord, récupérer la liste des tables
             cmd.CommandText = @"
-              SELECT 
-                  t.tablename,
-                  COALESCE(c.reltuples::bigint, 0) as row_count
-              FROM 
-                  pg_catalog.pg_tables t
-                  JOIN pg_catalog.pg_class c ON c.relname = t.tablename
-                  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-              WHERE 
-                  t.schemaname = @schema
-              ORDER BY 
-                  t.tablename";
+              SELECT tablename 
+              FROM pg_catalog.pg_tables 
+              WHERE schemaname = @schema 
+              ORDER BY tablename";
 
             cmd.Parameters.AddWithValue("schema", txtPostgresSchema.Text);
 
@@ -180,12 +172,15 @@ namespace DatabaseMigrator
             {
               while (await reader.ReadAsync())
               {
-                tables.Add(new TableInfo 
-                { 
-                  TableName = reader.GetString(0),
-                  RowCount = reader.GetInt64(1)
-                });
+                tables.Add(new TableInfo { TableName = reader.GetString(0), RowCount = 0 });
               }
+            }
+
+            // Ensuite, compter les lignes pour chaque table
+            foreach (var table in tables)
+            {
+              cmd.CommandText = $"SELECT COUNT(*) FROM {txtPostgresSchema.Text}.\"{table.TableName}\"";
+              table.RowCount = Convert.ToInt64(await cmd.ExecuteScalarAsync());
             }
           }
 
