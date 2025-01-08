@@ -1,5 +1,6 @@
 using DatabaseMigrator.Helpers;
 using DatabaseMigrator.Models;
+using DatabaseMigrator.Views;
 using Newtonsoft.Json;
 using Npgsql;
 using Oracle.ManagedDataAccess.Client;
@@ -88,16 +89,13 @@ namespace DatabaseMigrator
     {
       try
       {
-        btnLoadOracleTables.IsEnabled = false;
-        ResetButtonColor(btnLoadOracleTables);
-        LogMessage("Loading Oracle tables...");
+        var loadingWindow = new LoadingWindow();
+        loadingWindow.Show();
 
-        string connectionString = $"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={txtOracleServer.Text})(PORT={txtOraclePort.Text}))(CONNECT_DATA=(SERVICE_NAME={txtOracleServiceName.Text})));User Id={txtOracleUser.Text};Password={pwdOraclePassword.Password};";
-
-        using (var connection = new OracleConnection(connectionString))
+        var tables = new List<TableInfo>();
+        using (var connection = new OracleConnection(GetOracleConnectionString()))
         {
           await connection.OpenAsync();
-          var tables = new List<TableInfo>();
 
           using (var cmd = connection.CreateCommand())
           {
@@ -124,21 +122,19 @@ namespace DatabaseMigrator
               cmd.CommandText = $"SELECT COUNT(*) FROM \"{txtOracleUser.Text.ToUpper()}\".\"{table.TableName}\"";
               table.RowCount = Convert.ToInt64(await cmd.ExecuteScalarAsync());
             }
-
-            lstOracleTables.ItemsSource = tables;
-            LogMessage($"Successfully loaded {tables.Count} Oracle tables ✓");
-            SetButtonSuccess(btnLoadOracleTables);
           }
+
+          lstOracleTables.ItemsSource = tables;
+          LogMessage($"Successfully loaded {tables.Count} Oracle tables ✓");
+          SetButtonSuccess(btnLoadOracleTables);
         }
+
+        loadingWindow.Close();
       }
       catch (Exception ex)
       {
-        LogMessage($"Failed to load Oracle tables: {ex.Message} ✗");
+        LogMessage($"Failed to load Oracle tables: {ex.Message}");
         SetButtonError(btnLoadOracleTables);
-      }
-      finally
-      {
-        btnLoadOracleTables.IsEnabled = true;
       }
     }
 
@@ -146,16 +142,13 @@ namespace DatabaseMigrator
     {
       try
       {
-        btnLoadPostgresTables.IsEnabled = false;
-        ResetButtonColor(btnLoadPostgresTables);
-        LogMessage("Loading PostgreSQL tables...");
+        var loadingWindow = new LoadingWindow();
+        loadingWindow.Show();
 
-        string connectionString = $"Host={txtPostgresServer.Text};Port={txtPostgresPort.Text};Database={txtPostgresDatabase.Text};Username={txtPostgresUser.Text};Password={pwdPostgresPassword.Password}";
-
-        using (var connection = new NpgsqlConnection(connectionString))
+        var tables = new List<TableInfo>();
+        using (var connection = new NpgsqlConnection(GetPostgresConnectionString()))
         {
           await connection.OpenAsync();
-          var tables = new List<TableInfo>();
 
           using (var cmd = connection.CreateCommand())
           {
@@ -188,15 +181,13 @@ namespace DatabaseMigrator
           LogMessage($"Successfully loaded {tables.Count} PostgreSQL tables ✓");
           SetButtonSuccess(btnLoadPostgresTables);
         }
+
+        loadingWindow.Close();
       }
       catch (Exception ex)
       {
-        LogMessage($"Failed to load PostgreSQL tables: {ex.Message} ✗");
+        LogMessage($"Failed to load PostgreSQL tables: {ex.Message}");
         SetButtonError(btnLoadPostgresTables);
-      }
-      finally
-      {
-        btnLoadPostgresTables.IsEnabled = true;
       }
     }
 
@@ -356,10 +347,7 @@ namespace DatabaseMigrator
         ResetButtonColor(btnTestOracle);
         LogMessage("Testing Oracle connection...");
 
-        // Build the connection string
-        string connectionString = $"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={txtOracleServer.Text})(PORT={txtOraclePort.Text}))(CONNECT_DATA=(SERVICE_NAME={txtOracleServiceName.Text})));User Id={txtOracleUser.Text};Password={pwdOraclePassword.Password};";
-
-        using (var connection = new OracleConnection(connectionString))
+        using (var connection = new OracleConnection(GetOracleConnectionString()))
         {
           await connection.OpenAsync();
           LogMessage("Oracle connection successful! ✓");
@@ -385,10 +373,7 @@ namespace DatabaseMigrator
         ResetButtonColor(btnTestPostgres);
         LogMessage("Testing PostgreSQL connection...");
 
-        // Build the connection string
-        string connectionString = $"Host={txtPostgresServer.Text};Port={txtPostgresPort.Text};Database={txtPostgresDatabase.Text};Username={txtPostgresUser.Text};Password={pwdPostgresPassword.Password}";
-
-        using (var connection = new NpgsqlConnection(connectionString))
+        using (var connection = new NpgsqlConnection(GetPostgresConnectionString()))
         {
           await connection.OpenAsync();
           LogMessage("PostgreSQL connection successful! ✓");
@@ -404,6 +389,16 @@ namespace DatabaseMigrator
       {
         btnTestPostgres.IsEnabled = true;
       }
+    }
+
+    private string GetOracleConnectionString()
+    {
+      return $"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={txtOracleServer.Text})(PORT={txtOraclePort.Text}))(CONNECT_DATA=(SERVICE_NAME={txtOracleServiceName.Text})));User Id={txtOracleUser.Text};Password={pwdOraclePassword.Password};";
+    }
+
+    private string GetPostgresConnectionString()
+    {
+      return $"Host={txtPostgresServer.Text};Port={txtPostgresPort.Text};Database={txtPostgresDatabase.Text};Username={txtPostgresUser.Text};Password={pwdPostgresPassword.Password}";
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
