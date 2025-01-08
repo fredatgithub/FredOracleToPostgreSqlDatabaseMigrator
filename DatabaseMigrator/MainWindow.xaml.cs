@@ -103,14 +103,14 @@ namespace DatabaseMigrator
           {
             cmd.CommandText = @"
               SELECT 
-                  table_name,
-                  num_rows
+                  t.table_name,
+                  NVL(t.num_rows, 0) as row_count
               FROM 
-                  all_tables 
+                  all_tables t
               WHERE 
-                  owner = :owner
+                  t.owner = :owner
               ORDER BY 
-                  table_name";
+                  t.table_name";
 
             cmd.Parameters.Add(new OracleParameter("owner", txtOracleUser.Text.ToUpper()));
 
@@ -121,7 +121,7 @@ namespace DatabaseMigrator
                 tables.Add(new TableInfo 
                 { 
                   TableName = reader.GetString(0),
-                  RowCount = reader.IsDBNull(1) ? 0 : reader.GetInt64(1)
+                  RowCount = reader.GetInt64(1)
                 });
               }
             }
@@ -163,10 +163,10 @@ namespace DatabaseMigrator
             cmd.CommandText = @"
               SELECT 
                   t.tablename,
-                  s.n_live_tup as row_count
+                  COALESCE(s.n_live_tup, 0) as row_count
               FROM 
                   pg_catalog.pg_tables t
-                  JOIN pg_catalog.pg_stat_user_tables s ON s.relname = t.tablename
+                  LEFT JOIN pg_catalog.pg_stat_user_tables s ON s.relname = t.tablename
               WHERE 
                   t.schemaname = @schema
               ORDER BY 
