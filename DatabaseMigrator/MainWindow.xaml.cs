@@ -484,7 +484,8 @@ namespace DatabaseMigrator
     {
       if (lstOracleTables.ItemsSource is IEnumerable<TableInfo> tables)
       {
-        txtOracleSelectedCount.Text = tables.Count(t => t.IsSelected).ToString();
+        var selectedCount = tables.Count(t => t.IsSelected);
+        txtOracleSelectedCount.Text = selectedCount.ToString();
       }
     }
 
@@ -492,7 +493,8 @@ namespace DatabaseMigrator
     {
       if (lstPostgresTables.ItemsSource is IEnumerable<TableInfo> tables)
       {
-        txtPostgresSelectedCount.Text = tables.Count(t => t.IsSelected).ToString();
+        var selectedCount = tables.Count(t => t.IsSelected);
+        txtPostgresSelectedCount.Text = selectedCount.ToString();
       }
     }
 
@@ -521,6 +523,25 @@ namespace DatabaseMigrator
           {
             _isSelected = value;
             OnPropertyChanged(nameof(IsSelected));
+            // Déclencher la mise à jour du compteur
+            Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+            {
+              if (Application.Current.MainWindow is MainWindow mainWindow)
+              {
+                // Mettre à jour le compteur approprié en fonction de la ListView
+                var listView = mainWindow.lstOracleTables;
+                var countText = mainWindow.txtOracleSelectedCount;
+                
+                if (listView.Items.Contains(this))
+                {
+                  mainWindow.UpdateOracleSelectedCount();
+                }
+                else
+                {
+                  mainWindow.UpdatePostgresSelectedCount();
+                }
+              }
+            }));
           }
         }
       }
