@@ -6,7 +6,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Media;
 using MessageBox = System.Windows.MessageBox;
 
 namespace DatabaseMigrator
@@ -322,11 +324,27 @@ namespace DatabaseMigrator
       txtLogs.ScrollToEnd();
     }
 
+    private void ResetButtonColor(Button button)
+    {
+      button.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x00, 0x7A, 0xCC));
+    }
+
+    private void SetButtonSuccess(Button button)
+    {
+      button.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 167, 69));
+    }
+
+    private void SetButtonError(Button button)
+    {
+      button.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 53, 69));
+    }
+
     private async void BtnTestOracle_Click(object sender, RoutedEventArgs e)
     {
       try
       {
         btnTestOracle.IsEnabled = false;
+        ResetButtonColor(btnTestOracle);
         LogMessage("Testing Oracle connection...");
 
         // Build the connection string
@@ -336,11 +354,13 @@ namespace DatabaseMigrator
         {
           await connection.OpenAsync();
           LogMessage("Oracle connection successful! ✓");
+          SetButtonSuccess(btnTestOracle);
         }
       }
       catch (Exception ex)
       {
         LogMessage($"Oracle connection failed: {ex.Message} ✗");
+        SetButtonError(btnTestOracle);
       }
       finally
       {
@@ -353,6 +373,7 @@ namespace DatabaseMigrator
       try
       {
         btnTestPostgres.IsEnabled = false;
+        ResetButtonColor(btnTestPostgres);
         LogMessage("Testing PostgreSQL connection...");
 
         // Build the connection string
@@ -362,11 +383,13 @@ namespace DatabaseMigrator
         {
           await connection.OpenAsync();
           LogMessage("PostgreSQL connection successful! ✓");
+          SetButtonSuccess(btnTestPostgres);
         }
       }
       catch (Exception ex)
       {
         LogMessage($"PostgreSQL connection failed: {ex.Message} ✗");
+        SetButtonError(btnTestPostgres);
       }
       finally
       {
