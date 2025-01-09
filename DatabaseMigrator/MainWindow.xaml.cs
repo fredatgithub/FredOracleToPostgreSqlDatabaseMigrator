@@ -118,7 +118,7 @@ namespace DatabaseMigrator
 
           using (var cmd = connection.CreateCommand())
           {
-            // D'abord, récupérer la liste des tables
+            // First, get table list
             cmd.CommandText = @"
               SELECT table_name 
               FROM all_tables 
@@ -135,7 +135,7 @@ namespace DatabaseMigrator
               }
             }
 
-            // Ensuite, compter les lignes pour chaque table
+            // then count table lines for each table
             foreach (var table in tables)
             {
               cmd.CommandText = $"SELECT COUNT(*) FROM \"{txtOracleUser.Text.ToUpper()}\".\"{table.TableName}\"";
@@ -152,9 +152,9 @@ namespace DatabaseMigrator
 
         loadingWindow.Close();
       }
-      catch (Exception ex)
+      catch (Exception exception)
       {
-        LogMessage($"Failed to load Oracle tables: {ex.Message}");
+        LogMessage($"Failed to load Oracle tables: {exception.Message}");
         SetButtonError(btnLoadOracleTables);
       }
     }
@@ -590,10 +590,10 @@ namespace DatabaseMigrator
 
         LogMessage($"Loaded {procedures.Count} Oracle stored procedures.");
       }
-      catch (Exception ex)
+      catch (Exception exception)
       {
-        MessageBox.Show($"Error loading Oracle stored procedures: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        LogMessage($"Error loading Oracle stored procedures: {ex.Message}");
+        MessageBox.Show($"Error loading Oracle stored procedures: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        LogMessage($"Error loading Oracle stored procedures: {exception.Message}");
       }
       finally
       {
@@ -619,10 +619,10 @@ namespace DatabaseMigrator
 
         LogMessage($"Loaded {procedures.Count()} PostgreSQL stored procedures.");
       }
-      catch (Exception ex)
+      catch (Exception exception)
       {
-        MessageBox.Show($"Error loading PostgreSQL stored procedures: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        LogMessage($"Error loading PostgreSQL stored procedures: {ex.Message}");
+        MessageBox.Show($"Error loading PostgreSQL stored procedures: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        LogMessage($"Error loading PostgreSQL stored procedures: {exception.Message}");
       }
       finally
       {
