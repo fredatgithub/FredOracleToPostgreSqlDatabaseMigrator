@@ -5,16 +5,17 @@ using Newtonsoft.Json;
 using Npgsql;
 using Oracle.ManagedDataAccess.Client;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Media;
-using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace DatabaseMigrator
 {
@@ -85,18 +86,18 @@ namespace DatabaseMigrator
 
     private void FilterOracleTables()
     {
-      if (lstOracleTables.ItemsSource is System.Collections.IEnumerable items)
+      if (lstOracleTables.ItemsSource is IEnumerable items)
       {
         var view = CollectionViewSource.GetDefaultView(items);
         var searchText = txtOracleSearch.Text.ToUpperInvariant();
-        view.Filter = item => string.IsNullOrEmpty(searchText) || 
+        view.Filter = item => string.IsNullOrEmpty(searchText) ||
                              (item as TableInfo)?.TableName.ToUpperInvariant().Contains(searchText) == true;
       }
     }
 
     private void FilterPostgresTables()
     {
-      if (lstPostgresTables.ItemsSource is System.Collections.IEnumerable items)
+      if (lstPostgresTables.ItemsSource is IEnumerable items)
       {
         var view = CollectionViewSource.GetDefaultView(items);
         var searchText = txtPostgresSearch.Text.ToUpperInvariant();
@@ -146,7 +147,7 @@ namespace DatabaseMigrator
           lstOracleTables.ItemsSource = tables;
           LogMessage($"Successfully loaded {tables.Count} Oracle tables ✓");
           SetButtonSuccess(btnLoadOracleTables);
-          
+
           CompareTables();
         }
 
@@ -201,7 +202,7 @@ namespace DatabaseMigrator
           lstPostgresTables.ItemsSource = tables;
           LogMessage($"Successfully loaded {tables.Count} PostgreSQL tables ✓");
           SetButtonSuccess(btnLoadPostgresTables);
-          
+
           CompareTables();
         }
 
@@ -523,7 +524,7 @@ namespace DatabaseMigrator
 
       // Save ID
       SaveCredentials();
-      
+
       // Save logs
       SaveLogs();
     }
@@ -581,9 +582,9 @@ namespace DatabaseMigrator
         Mouse.OverrideCursor = Cursors.Wait;
 
         var procedures = await Task.Run(() => _oracleService.GetStoredProcedures());
-        
-        lstOracleStoredProcs.ItemsSource = procedures.Select(p => new StoredProcedureItem 
-        { 
+
+        lstOracleStoredProcs.ItemsSource = procedures.Select(p => new StoredProcedureItem
+        {
           ProcedureName = p,
           IsSelected = false
         }).OrderBy(p => p.ProcedureName).ToList();
@@ -610,9 +611,9 @@ namespace DatabaseMigrator
         Mouse.OverrideCursor = Cursors.Wait;
 
         var procedures = await Task.Run(() => _postgresService.GetStoredProcedures());
-        
-        lstPostgresStoredProcs.ItemsSource = procedures.Select(p => new StoredProcedureItem 
-        { 
+
+        lstPostgresStoredProcs.ItemsSource = procedures.Select(p => new StoredProcedureItem
+        {
           ProcedureName = p,
           IsSelected = false
         }).OrderBy(p => p.ProcedureName).ToList();
@@ -635,7 +636,7 @@ namespace DatabaseMigrator
     {
       private bool _isSelected;
       public string ProcedureName { get; set; }
-      
+
       public bool IsSelected
       {
         get => _isSelected;

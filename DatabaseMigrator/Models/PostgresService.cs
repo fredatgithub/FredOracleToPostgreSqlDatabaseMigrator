@@ -2,11 +2,11 @@ using System.Collections.Generic;
 
 namespace DatabaseMigrator
 {
-    public class PostgresService : IPostgresService
+  public class PostgresService : IPostgresService
+  {
+    public List<string> GetStoredProcedures()
     {
-        public List<string> GetStoredProcedures()
-        {
-            return new List<string> { "Procedure1", "Procedure2" }; 
-        }
+      return new List<string> { "Procedure1", "Procedure2" };
     }
-} 
+  }
+}

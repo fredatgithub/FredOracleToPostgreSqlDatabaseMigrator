@@ -2,19 +2,19 @@ using System.Windows;
 
 namespace DatabaseMigrator.Views
 {
-    public partial class LoadingWindow : Window
+  public partial class LoadingWindow : Window
+  {
+    public LoadingWindow(Window owner)
     {
-        public LoadingWindow(Window owner)
-        {
-            InitializeComponent();
-            Owner = owner;
+      InitializeComponent();
+      Owner = owner;
 
-            // Centrer la fenêtre par rapport à la fenêtre principale
-            Loaded += (s, e) =>
-            {
-                Left = owner.Left + (owner.Width - Width) / 2;
-                Top = owner.Top + (owner.Height - Height) / 2;
-            };
-        }
+      // Center the window vs the main window
+      Loaded += (s, e) =>
+      {
+        Left = owner.Left + (owner.Width - Width) / 2;
+        Top = owner.Top + (owner.Height - Height) / 2;
+      };
     }
+  }
 }
