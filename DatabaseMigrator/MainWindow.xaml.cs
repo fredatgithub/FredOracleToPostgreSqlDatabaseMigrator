@@ -1,5 +1,6 @@
 using DatabaseMigrator.Helpers;
 using DatabaseMigrator.Models;
+using DatabaseMigrator.Properties;
 using DatabaseMigrator.Views;
 using Newtonsoft.Json;
 using Npgsql;
@@ -21,8 +22,10 @@ namespace DatabaseMigrator
 {
   public partial class MainWindow : Window
   {
-    private readonly string _oracleCredentialsFile = "id_oracle.txt";
-    private readonly string _pgCredentialsFile = "id_pg.txt";
+    private readonly string _oracleCredentialsFileTemplate = "id_oracle-{profilName}.txt";
+    private readonly string _pgCredentialsFileTemplate = "id_pg-{profilName}.txt";
+    private string _oracleCredentialsFile = "id_oracle.txt";
+    private string _pgCredentialsFile = "id_pg.txt";
     private readonly string _logFile = "log.txt";
     private IOracleService _oracleService;
     private IPostgresService _postgresService;
@@ -32,7 +35,9 @@ namespace DatabaseMigrator
       InitializeComponent();
       _oracleService = new OracleService();
       _postgresService = new PostgresService();
-      LoadSavedCredentials();
+      LoadProfilCombobox();
+      LoadLastProfilUsed();
+      LoadCredentials();
       LoadLogs();
 
       // Wire up button click events
@@ -52,6 +57,73 @@ namespace DatabaseMigrator
       lstPostgresTables.SelectionChanged += LstPostgresTables_SelectionChanged;
       lstOracleStoredProcs.SelectionChanged += LstOracleStoredProcs_SelectionChanged;
       lstPostgresStoredProcs.SelectionChanged += LstPostgresStoredProcs_SelectionChanged;
+    }
+
+    private void LoadLastProfilUsed()
+    {
+      var lastOracleProfil = Settings.Default.OracleSelectedProfil;
+      var lastPostgresProfil = Settings.Default.PostgresqlSelectedProfil;
+      if (!string.IsNullOrEmpty(lastOracleProfil))
+      {
+        cboOracleConnectionProfil.SelectedItem = lastOracleProfil;
+        _oracleCredentialsFile = _oracleCredentialsFileTemplate.Replace("{profilName}", lastOracleProfil);
+      }
+
+      if (!string.IsNullOrEmpty(lastPostgresProfil))
+      {
+        cboPostgresqlConnectionProfil.SelectedItem = lastPostgresProfil;
+        _pgCredentialsFile = _pgCredentialsFileTemplate.Replace("{profilName}", lastPostgresProfil);
+      }
+    }
+
+    private void LoadProfilCombobox()
+    {
+      LoadProfilForDatabase("id_oracle-*.txt", cboOracleConnectionProfil);
+      LoadProfilForDatabase("id_pg-*.txt", cboPostgresqlConnectionProfil);
+    }
+
+    private void LoadProfilForDatabase(string databaseName, ComboBox comboBox)
+    {
+      var profils = GetProfilFile(databaseName);
+      comboBox.Items.Clear();
+      foreach (var profil in profils)
+      {
+        var profilWithoutExtension = Path.GetFileNameWithoutExtension(profil);
+        var array = profilWithoutExtension.Split('-');
+        if (array.Length >= 2)
+        {
+          var profilName = array[1];
+          comboBox.Items.Add(profilName);
+        }
+      }
+    }
+
+    private List<string> GetProfilFile(string pattern)
+    {
+      var result = GetAllFiles(pattern);
+      result = RemoveFirstCharacters(result, 2);
+      return result;
+    }
+
+    private List<string> RemoveFirstCharacters(List<string> list, int nbCharacters = 0)
+    {
+      return list.Select(ligne => ligne.Length > nbCharacters ? ligne.Substring(nbCharacters) : string.Empty).ToList();
+    }
+
+
+    private List<string> GetAllFiles(string pattern)
+    {
+      var result = new List<string>();
+      try
+      {
+        result = Directory.GetFiles(".", pattern, SearchOption.TopDirectoryOnly).ToList();
+      }
+      catch (Exception)
+      {
+        return result;
+      }
+
+      return result;
     }
 
     private void LstOracleTables_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -245,7 +317,7 @@ namespace DatabaseMigrator
       }
     }
 
-    private void LoadSavedCredentials()
+    private void LoadCredentials()
     {
       try
       {
