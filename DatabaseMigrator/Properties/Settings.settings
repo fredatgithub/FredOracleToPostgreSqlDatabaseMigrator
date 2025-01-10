@@ -1,8 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="DatabaseMigrator.Properties" GeneratedClassName="Settings">
-  <Profiles>
-    <Profile Name="(Default)" />
-  </Profiles>
+  <Profiles />
   <Settings>
     <Setting Name="WindowTop" Type="System.Double" Scope="User">
       <Value Profile="(Default)">0</Value>
@@ -18,6 +16,36 @@
     </Setting>
     <Setting Name="WindowState" Type="System.Windows.WindowState" Scope="User">
       <Value Profile="(Default)">Normal</Value>
+    </Setting>
+    <Setting Name="OracleProfil1" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Profil1</Value>
+    </Setting>
+    <Setting Name="OracleProfil2" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Profil2</Value>
+    </Setting>
+    <Setting Name="OracleProfil3" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Profil3</Value>
+    </Setting>
+    <Setting Name="OracleProfil4" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Profil4</Value>
+    </Setting>
+    <Setting Name="OracleSelectedProfil" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Profil1</Value>
+    </Setting>
+    <Setting Name="PostgresqlProfil1" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Profil1</Value>
+    </Setting>
+    <Setting Name="PostgresqlProfil2" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Profil2</Value>
+    </Setting>
+    <Setting Name="PostgresqlProfil3" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Profil3</Value>
+    </Setting>
+    <Setting Name="PostgresqlProfil4" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Profil4</Value>
+    </Setting>
+    <Setting Name="PostgresqlSelectedProfil" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Profil1</Value>
     </Setting>
   </Settings>
 </SettingsFile>

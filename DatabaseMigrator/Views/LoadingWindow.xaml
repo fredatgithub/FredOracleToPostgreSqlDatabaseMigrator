@@ -11,8 +11,8 @@
     
     <Border Background="#F0F0F0"
             CornerRadius="10"
-            BorderBrush="#CCCCCC"
-            BorderThickness="1"
+            BorderBrush="Black"
+            BorderThickness="2"
             Margin="10">
         <StackPanel VerticalAlignment="Center" 
                     HorizontalAlignment="Center" 

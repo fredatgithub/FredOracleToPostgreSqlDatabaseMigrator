@@ -82,5 +82,125 @@ namespace DatabaseMigrator.Properties {
                 this["WindowState"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Profil1")]
+        public string OracleProfil1 {
+            get {
+                return ((string)(this["OracleProfil1"]));
+            }
+            set {
+                this["OracleProfil1"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Profil2")]
+        public string OracleProfil2 {
+            get {
+                return ((string)(this["OracleProfil2"]));
+            }
+            set {
+                this["OracleProfil2"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Profil3")]
+        public string OracleProfil3 {
+            get {
+                return ((string)(this["OracleProfil3"]));
+            }
+            set {
+                this["OracleProfil3"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Profil4")]
+        public string OracleProfil4 {
+            get {
+                return ((string)(this["OracleProfil4"]));
+            }
+            set {
+                this["OracleProfil4"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Profil1")]
+        public string OracleSelectedProfil {
+            get {
+                return ((string)(this["OracleSelectedProfil"]));
+            }
+            set {
+                this["OracleSelectedProfil"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Profil1")]
+        public string PostgresqlProfil1 {
+            get {
+                return ((string)(this["PostgresqlProfil1"]));
+            }
+            set {
+                this["PostgresqlProfil1"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Profil2")]
+        public string PostgresqlProfil2 {
+            get {
+                return ((string)(this["PostgresqlProfil2"]));
+            }
+            set {
+                this["PostgresqlProfil2"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Profil3")]
+        public string PostgresqlProfil3 {
+            get {
+                return ((string)(this["PostgresqlProfil3"]));
+            }
+            set {
+                this["PostgresqlProfil3"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Profil4")]
+        public string PostgresqlProfil4 {
+            get {
+                return ((string)(this["PostgresqlProfil4"]));
+            }
+            set {
+                this["PostgresqlProfil4"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Profil1")]
+        public string PostgresqlSelectedProfil {
+            get {
+                return ((string)(this["PostgresqlSelectedProfil"]));
+            }
+            set {
+                this["PostgresqlSelectedProfil"] = value;
+            }
+        }
     }
 }

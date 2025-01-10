@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DatabaseMigrator"
         mc:Ignorable="d"
-        Title="Fred's Oracle to PostgreSQL Database Migrator" Height="629" Width="800"
+        Title="Fred's Oracle to PostgreSQL Database Migrator" Height="715" Width="800"
         Loaded="Window_Loaded"
         Closing="Window_Closing"
         WindowStartupLocation="Manual">
@@ -56,6 +56,16 @@
                                     Margin="0,0,0,10"
                                     Name="chkSaveOracle"
                          FontStyle="Normal" FontWeight="Bold"/>
+              <ComboBox Name="cboOracleConnectionProfil" 
+                        Margin="0,0,0,10"
+                        SelectedIndex="0"
+                        FontStyle="Normal" FontWeight="Bold">
+                <ComboBoxItem Content="Profil1"/>
+                <ComboBoxItem Content="Profil2"/>
+                <ComboBoxItem Content="Profil3"/>
+                <ComboBoxItem Content="Profil4"/>
+              </ComboBox>
+
               <Button Content="Test Connection" 
                                     Margin="0,10,0,0" 
                                     Padding="10,5"
@@ -81,6 +91,15 @@
               <Label Content="Password:" Name="lblPostgresPassword"/>
               <PasswordBox Margin="0,0,0,10" Name="pwdPostgresPassword"/>
               <CheckBox Content="Save Credentials" Name="chkSavePostgres" Margin="0,0,0,10"/>
+              <ComboBox Name="cboPostgresqlConnectionProfil" 
+                        Margin="0,0,0,10"
+                        SelectedIndex="0"
+                        FontStyle="Normal" FontWeight="Bold">
+                <ComboBoxItem Content="Profil1"/>
+                <ComboBoxItem Content="Profil2"/>
+                <ComboBoxItem Content="Profil3"/>
+                <ComboBoxItem Content="Profil4"/>
+              </ComboBox>
               <Button Content="Test Connection" 
                                     Margin="0,10,0,0" 
                                     Padding="10,5"
