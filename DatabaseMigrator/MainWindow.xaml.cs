@@ -20,7 +20,7 @@ using System.Windows.Media;
 
 namespace DatabaseMigrator
 {
-  public partial class MainWindow : Window
+  public partial class MainWindow: Window
   {
     private readonly string _oracleCredentialsFileTemplate = "id_oracle-{profilName}.txt";
     private readonly string _pgCredentialsFileTemplate = "id_pg-{profilName}.txt";
@@ -82,26 +82,84 @@ namespace DatabaseMigrator
       LoadProfilForDatabase("id_pg-*.txt", cboPostgresqlConnectionProfil);
     }
 
-    private void LoadProfilForDatabase(string databaseName, ComboBox comboBox)
+    private static void LoadProfilForDatabase(string databaseName, ComboBox comboBox)
     {
       var profils = GetProfilFile(databaseName);
+      profils = GetProfilNameFromFilename(profils);
+      comboBox.Items.Clear();
+      foreach (var item in profils)
+      {
+        comboBox.Items.Add(item);
+      }
+
+      if (databaseName.ToLower().Contains("oracle"))
+      {
+        if (!comboBox.Items.Contains(Settings.Default.OracleProfil1))
+        {
+          profils.Add(Settings.Default.OracleProfil1);
+        }
+
+        if (!comboBox.Items.Contains(Settings.Default.OracleProfil2))
+        {
+          profils.Add(Settings.Default.OracleProfil2);
+        }
+
+        if (!comboBox.Items.Contains(Settings.Default.OracleProfil3))
+        {
+          profils.Add(Settings.Default.OracleProfil3);
+        }
+
+        if (!comboBox.Items.Contains(Settings.Default.OracleProfil4))
+        {
+          profils.Add(Settings.Default.OracleProfil4);
+        }
+      }
+      else
+      {
+        if (!comboBox.Items.Contains(Settings.Default.PostgresqlProfil1))
+        {
+          profils.Add(Settings.Default.PostgresqlProfil1);
+        }
+
+        if (!comboBox.Items.Contains(Settings.Default.PostgresqlProfil2))
+        {
+          profils.Add(Settings.Default.PostgresqlProfil2);
+        }
+
+        if (!comboBox.Items.Contains(Settings.Default.PostgresqlProfil3))
+        {
+          profils.Add(Settings.Default.PostgresqlProfil3);
+        }
+
+        if (!comboBox.Items.Contains(Settings.Default.PostgresqlProfil4))
+        {
+          profils.Add(Settings.Default.PostgresqlProfil4);
+        }
+      }
+
       comboBox.Items.Clear();
       foreach (var profil in profils)
       {
-        var profilWithoutExtension = Path.GetFileNameWithoutExtension(profil);
-        var array = profilWithoutExtension.Split('-');
-        if (array.Length >= 2)
-        {
-          var profilName = array[1];
-          comboBox.Items.Add(profilName);
-        }
+        comboBox.Items.Add(profil);
       }
     }
 
-    private List<string> GetProfilFile(string pattern)
+    private static List<string> GetProfilFile(string pattern)
     {
       var result = GetAllFiles(pattern);
-      result = RemoveFirstCharacters(result, 2);
+      var array = GetProfilNameFromFilename(result);
+      return result;
+    }
+
+    private static List<string> GetProfilNameFromFilename(List<string> list)
+    {
+      var result = new List<string>();
+      foreach (var item in list)
+      {
+        var profil = item.Split('-')[1].Split('.')[0];
+        result.Add(profil);
+      }
+
       return result;
     }
 
@@ -380,11 +438,7 @@ namespace DatabaseMigrator
 
           var jsonOracle = JsonConvert.SerializeObject(oracleCredentials);
           var encryptedOracle = EncryptionHelper.Encrypt(jsonOracle);
-          File.WriteAllText(_oracleCredentialsFile, encryptedOracle);
-        }
-        else if (File.Exists(_oracleCredentialsFile))
-        {
-          File.Delete(_oracleCredentialsFile);
+          File.WriteAllText(GetSelectedProfilforOracle(cboOracleConnectionProfil.SelectedValue.ToString()), encryptedOracle);
         }
 
         // Save PostgreSQL ID
@@ -402,17 +456,25 @@ namespace DatabaseMigrator
 
           var jsonPg = JsonConvert.SerializeObject(pgCredentials);
           var encryptedPg = EncryptionHelper.Encrypt(jsonPg);
-          File.WriteAllText(_pgCredentialsFile, encryptedPg);
-        }
-        else if (File.Exists(_pgCredentialsFile))
-        {
-          File.Delete(_pgCredentialsFile);
+          File.WriteAllText(GetSelectedProfilforPostgresql(cboPostgresqlConnectionProfil.SelectedValue.ToString()), encryptedPg);
         }
       }
       catch (Exception exception)
       {
         MessageBox.Show($"Error saving credentials: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
       }
+    }
+
+    private string GetSelectedProfilforPostgresql(string profilName)
+    {
+      _pgCredentialsFile = _pgCredentialsFileTemplate.Replace("{profilName}", profilName);
+      return _pgCredentialsFile;
+    }
+
+    private string GetSelectedProfilforOracle(string profilName)
+    {
+      _oracleCredentialsFile = _oracleCredentialsFileTemplate.Replace("{profilName}", profilName);
+      return _oracleCredentialsFile;
     }
 
     private void LoadLogs()
@@ -704,7 +766,7 @@ namespace DatabaseMigrator
       }
     }
 
-    public class StoredProcedureItem : INotifyPropertyChanged
+    public class StoredProcedureItem: INotifyPropertyChanged
     {
       private bool _isSelected;
       public string ProcedureName { get; set; }
