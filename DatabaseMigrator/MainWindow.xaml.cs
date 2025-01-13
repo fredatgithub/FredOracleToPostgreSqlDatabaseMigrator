@@ -105,13 +105,13 @@ namespace DatabaseMigrator
       return result;
     }
 
-    private List<string> RemoveFirstCharacters(List<string> list, int nbCharacters = 0)
+    private static List<string> RemoveFirstCharacters(List<string> list, int nbCharacters = 0)
     {
       return list.Select(ligne => ligne.Length > nbCharacters ? ligne.Substring(nbCharacters) : string.Empty).ToList();
     }
 
 
-    private List<string> GetAllFiles(string pattern)
+    private static List<string> GetAllFiles(string pattern)
     {
       var result = new List<string>();
       try
@@ -367,7 +367,7 @@ namespace DatabaseMigrator
       try
       {
         // Save Oracle ID
-        if (chkSaveOracle.IsChecked == true)
+        if (chkSaveOracle.IsChecked == true && cboOracleConnectionProfil.SelectedIndex != -1)
         {
           var oracleCredentials = new DbCredentials
           {
@@ -388,7 +388,7 @@ namespace DatabaseMigrator
         }
 
         // Save PostgreSQL ID
-        if (chkSavePostgres.IsChecked == true)
+        if (chkSavePostgres.IsChecked == true && cboPostgresqlConnectionProfil.SelectedIndex != -1)
         {
           var pgCredentials = new DbCredentials
           {
@@ -574,7 +574,7 @@ namespace DatabaseMigrator
     private void Window_Closing(object sender, CancelEventArgs e)
     {
       // Save window position and size
-      var settings = Properties.Settings.Default;
+      var settings = Settings.Default;
 
       if (WindowState == WindowState.Normal)
       {
@@ -601,7 +601,7 @@ namespace DatabaseMigrator
       SaveLogs();
     }
 
-    private string Plural(int count)
+    private static string Plural(int count)
     {
       return count > 1 ? "s" : "";
     }
