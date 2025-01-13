@@ -27,8 +27,8 @@ namespace DatabaseMigrator
     private string _oracleCredentialsFile = "id_oracle.txt";
     private string _pgCredentialsFile = "id_pg.txt";
     private readonly string _logFile = "log.txt";
-    private IOracleService _oracleService;
-    private IPostgresService _postgresService;
+    private readonly IOracleService _oracleService;
+    private readonly IPostgresService _postgresService;
 
     public MainWindow()
     {
