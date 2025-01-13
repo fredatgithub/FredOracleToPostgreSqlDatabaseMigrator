@@ -55,7 +55,7 @@
               <CheckBox Content="Save Credentials" 
                                     Margin="0,0,0,10"
                                     Name="chkSaveOracle"
-                         FontStyle="Normal" FontWeight="Bold"/>
+                         FontStyle="Normal" FontWeight="Bold" Checked="ChkSaveOracle_Checked"/>
               <ComboBox Name="cboOracleConnectionProfil" 
                         Margin="0,0,0,10"
                         SelectedIndex="0"
@@ -90,7 +90,7 @@
               <TextBox Margin="0,0,0,10" Name="txtPostgresUser"/>
               <Label Content="Password:" Name="lblPostgresPassword"/>
               <PasswordBox Margin="0,0,0,10" Name="pwdPostgresPassword"/>
-              <CheckBox Content="Save Credentials" Name="chkSavePostgres" Margin="0,0,0,10"/>
+              <CheckBox Content="Save Credentials" Name="chkSavePostgres" Margin="0,0,0,10" Checked="ChkSavePostgres_Checked"/>
               <ComboBox Name="cboPostgresqlConnectionProfil" 
                         Margin="0,0,0,10"
                         SelectedIndex="0"

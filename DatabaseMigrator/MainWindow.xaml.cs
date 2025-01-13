@@ -729,5 +729,23 @@ namespace DatabaseMigrator
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
       }
     }
+
+    private void ChkSavePostgres_Checked(object sender, RoutedEventArgs e)
+    {
+      if (chkSavePostgres.IsChecked == true && cboPostgresqlConnectionProfil.SelectedIndex == -1)
+      {
+        MessageBox.Show("You have to select a profile name for the PostgreSQL connection", "No profile choosen", MessageBoxButton.OK, MessageBoxImage.Hand);
+        chkSavePostgres.IsChecked = false;
+      }
+    }
+
+    private void ChkSaveOracle_Checked(object sender, RoutedEventArgs e)
+    {
+      if (chkSaveOracle.IsChecked == true && cboOracleConnectionProfil.SelectedIndex == -1)
+      {
+        MessageBox.Show("You have to select a profile name for the Oracle connection", "No profile choosen", MessageBoxButton.OK, MessageBoxImage.Hand);
+        chkSaveOracle.IsChecked = false;
+      }
+    }
   }
 }
