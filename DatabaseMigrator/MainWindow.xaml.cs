@@ -147,7 +147,7 @@ namespace DatabaseMigrator
     private static List<string> GetProfilFile(string pattern)
     {
       var result = GetAllFiles(pattern);
-      var array = GetProfilNameFromFilename(result);
+      //var array = GetProfilNameFromFilename(result);
       return result;
     }
 
@@ -439,6 +439,8 @@ namespace DatabaseMigrator
           var jsonOracle = JsonConvert.SerializeObject(oracleCredentials);
           var encryptedOracle = EncryptionHelper.Encrypt(jsonOracle);
           File.WriteAllText(GetSelectedProfilforOracle(cboOracleConnectionProfil.SelectedValue.ToString()), encryptedOracle);
+          Settings.Default.OracleSelectedProfil = cboOracleConnectionProfil.SelectedValue.ToString();
+          Settings.Default.Save();
         }
 
         // Save PostgreSQL ID
@@ -457,6 +459,8 @@ namespace DatabaseMigrator
           var jsonPg = JsonConvert.SerializeObject(pgCredentials);
           var encryptedPg = EncryptionHelper.Encrypt(jsonPg);
           File.WriteAllText(GetSelectedProfilforPostgresql(cboPostgresqlConnectionProfil.SelectedValue.ToString()), encryptedPg);
+          Settings.Default.PostgresqlSelectedProfil = cboPostgresqlConnectionProfil.SelectedValue.ToString();
+          Settings.Default.Save();
         }
       }
       catch (Exception exception)
