@@ -907,7 +907,7 @@ namespace DatabaseMigrator
             oracleConnection.Open();
             postgresConnection.Open();
 
-            // Truncate target table and disable foreign key constraints
+            // Truncate target table and drop foreign key constraints
             using (var cmd = new NpgsqlCommand())
             {
               cmd.Connection = postgresConnection;
@@ -915,32 +915,40 @@ namespace DatabaseMigrator
 
               // Get all foreign key constraints for this table
               cmd.CommandText = @"
-                SELECT
-                    tc.constraint_name
+                SELECT 
+                    tc.constraint_name,
+                    ccu.table_schema as foreign_table_schema,
+                    ccu.table_name as foreign_table_name
                 FROM information_schema.table_constraints tc
+                JOIN information_schema.constraint_column_usage ccu 
+                    ON tc.constraint_name = ccu.constraint_name
                 WHERE tc.constraint_type = 'FOREIGN KEY'
                 AND tc.table_schema = @schema
                 AND tc.table_name = @tablename";
               cmd.Parameters.AddWithValue("schema", txtPostgresSchema.Text);
               cmd.Parameters.AddWithValue("tablename", targetTable.TableName);
               
-              var constraints = new List<string>();
+              var constraints = new List<(string name, string schema, string table)>();
               using (var reader = cmd.ExecuteReader())
               {
                 while (reader.Read())
                 {
-                  constraints.Add(reader.GetString(0));
+                  constraints.Add((
+                    reader.GetString(0),
+                    reader.GetString(1),
+                    reader.GetString(2)
+                  ));
                 }
               }
               cmd.Parameters.Clear();
 
-              // Disable each foreign key constraint
+              // Drop each foreign key constraint
               foreach (var constraint in constraints)
               {
-                cmd.CommandText = $"ALTER TABLE {schemaTable} ALTER CONSTRAINT {constraint} NOT VALID";
+                cmd.CommandText = $"ALTER TABLE {schemaTable} DROP CONSTRAINT {constraint.name}";
                 cmd.ExecuteNonQuery();
               }
-              LogMessage($"Disabled {constraints.Count} foreign key constraints for table {schemaTable}");
+              LogMessage($"Dropped {constraints.Count} foreign key constraints for table {schemaTable}");
               
               // Disable user triggers
               cmd.CommandText = $"ALTER TABLE {schemaTable} DISABLE TRIGGER USER";
@@ -1024,17 +1032,41 @@ namespace DatabaseMigrator
                 cmd.CommandText = $"ALTER TABLE {schemaTable} ENABLE TRIGGER USER";
                 cmd.ExecuteNonQuery();
                 
-                // Re-enable and validate each foreign key constraint
+                // Recreate each foreign key constraint
                 foreach (var constraint in constraints)
                 {
-                  cmd.CommandText = $"ALTER TABLE {schemaTable} ALTER CONSTRAINT {constraint} VALID";
-                  cmd.ExecuteNonQuery();
-                  
-                  // Validate the constraint
-                  cmd.CommandText = $"ALTER TABLE {schemaTable} VALIDATE CONSTRAINT {constraint}";
-                  cmd.ExecuteNonQuery();
+                  try
+                  {
+                    // Get the constraint definition
+                    cmd.CommandText = $@"
+                      SELECT pg_get_constraintdef(oid) 
+                      FROM pg_constraint 
+                      WHERE conname = @constraintname";
+                    cmd.Parameters.AddWithValue("constraintname", constraint.name);
+                    string constraintDef = "";
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                      if (reader.Read())
+                      {
+                        constraintDef = reader.GetString(0);
+                      }
+                    }
+                    cmd.Parameters.Clear();
+
+                    if (!string.IsNullOrEmpty(constraintDef))
+                    {
+                      // Recreate the constraint
+                      cmd.CommandText = $"ALTER TABLE {schemaTable} ADD CONSTRAINT {constraint.name} {constraintDef}";
+                      cmd.ExecuteNonQuery();
+                      LogMessage($"Recreated constraint {constraint.name}");
+                    }
+                  }
+                  catch (Exception ex)
+                  {
+                    LogMessage($"Warning: Could not recreate constraint {constraint.name}: {ex.Message}");
+                  }
                 }
-                LogMessage($"Re-enabled and validated constraints for table {schemaTable}");
+                LogMessage($"Finished recreating constraints for table {schemaTable}");
               }
             }
           }
