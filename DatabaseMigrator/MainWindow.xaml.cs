@@ -789,32 +789,6 @@ namespace DatabaseMigrator
       }
     }
 
-    public class StoredProcedureItem: INotifyPropertyChanged
-    {
-      private bool _isSelected;
-      public string ProcedureName { get; set; }
-
-      public bool IsSelected
-      {
-        get => _isSelected;
-        set
-        {
-          if (_isSelected != value)
-          {
-            _isSelected = value;
-            OnPropertyChanged(nameof(IsSelected));
-          }
-        }
-      }
-
-      public event PropertyChangedEventHandler PropertyChanged;
-
-      protected virtual void OnPropertyChanged(string propertyName)
-      {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-      }
-    }
-
     private void ChkSavePostgres_Checked(object sender, RoutedEventArgs e)
     {
       if (chkSavePostgres.IsChecked == true && cboPostgresqlConnectionProfile.SelectedIndex == -1)
@@ -937,18 +911,41 @@ namespace DatabaseMigrator
             using (var cmd = new NpgsqlCommand())
             {
               cmd.Connection = postgresConnection;
-              
               var schemaTable = $"{txtPostgresSchema.Text}.{targetTable.TableName}";
+
+              // Get all foreign key constraints for this table
+              cmd.CommandText = @"
+                SELECT
+                    tc.constraint_name
+                FROM information_schema.table_constraints tc
+                WHERE tc.constraint_type = 'FOREIGN KEY'
+                AND tc.table_schema = @schema
+                AND tc.table_name = @tablename";
+              cmd.Parameters.AddWithValue("schema", txtPostgresSchema.Text);
+              cmd.Parameters.AddWithValue("tablename", targetTable.TableName);
               
-              // Disable foreign key constraints
+              var constraints = new List<string>();
+              using (var reader = cmd.ExecuteReader())
+              {
+                while (reader.Read())
+                {
+                  constraints.Add(reader.GetString(0));
+                }
+              }
+              cmd.Parameters.Clear();
+
+              // Disable each foreign key constraint
+              foreach (var constraint in constraints)
+              {
+                cmd.CommandText = $"ALTER TABLE {schemaTable} ALTER CONSTRAINT {constraint} NOT VALID";
+                cmd.ExecuteNonQuery();
+              }
+              LogMessage($"Disabled {constraints.Count} foreign key constraints for table {schemaTable}");
+              
+              // Disable user triggers
               cmd.CommandText = $"ALTER TABLE {schemaTable} DISABLE TRIGGER USER";
               cmd.ExecuteNonQuery();
               LogMessage($"Disabled user triggers for table {schemaTable}");
-
-              // Désactiver temporairement la vérification des clés étrangères pour cette session
-              cmd.CommandText = "SET session_replication_role = 'replica';";
-              cmd.ExecuteNonQuery();
-              LogMessage("Disabled foreign key checks");
               
               // Truncate the table
               cmd.CommandText = $"TRUNCATE TABLE {schemaTable} RESTART IDENTITY CASCADE";
@@ -1023,14 +1020,21 @@ namespace DatabaseMigrator
               }
               finally
               {
-                // Re-enable foreign key constraints
+                // Re-enable user triggers
                 cmd.CommandText = $"ALTER TABLE {schemaTable} ENABLE TRIGGER USER";
                 cmd.ExecuteNonQuery();
                 
-                // Réactiver la vérification des clés étrangères
-                cmd.CommandText = "SET session_replication_role = 'origin';";
-                cmd.ExecuteNonQuery();
-                LogMessage($"Re-enabled constraints for table {schemaTable}");
+                // Re-enable and validate each foreign key constraint
+                foreach (var constraint in constraints)
+                {
+                  cmd.CommandText = $"ALTER TABLE {schemaTable} ALTER CONSTRAINT {constraint} VALID";
+                  cmd.ExecuteNonQuery();
+                  
+                  // Validate the constraint
+                  cmd.CommandText = $"ALTER TABLE {schemaTable} VALIDATE CONSTRAINT {constraint}";
+                  cmd.ExecuteNonQuery();
+                }
+                LogMessage($"Re-enabled and validated constraints for table {schemaTable}");
               }
             }
           }
