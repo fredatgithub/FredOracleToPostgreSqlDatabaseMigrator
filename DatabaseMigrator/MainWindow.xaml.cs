@@ -65,26 +65,29 @@ namespace DatabaseMigrator
       var lastPostgresProfil = Settings.Default.PostgresqlSelectedProfil;
       if (!string.IsNullOrEmpty(lastOracleProfil))
       {
-        cboOracleConnectionProfil.SelectedItem = lastOracleProfil;
+        cboOracleConnectionProfile.SelectedItem = lastOracleProfil;
         _oracleCredentialsFile = _oracleCredentialsFileTemplate.Replace("{profilName}", lastOracleProfil);
       }
 
       if (!string.IsNullOrEmpty(lastPostgresProfil))
       {
-        cboPostgresqlConnectionProfil.SelectedItem = lastPostgresProfil;
+        cboPostgresqlConnectionProfile.SelectedItem = lastPostgresProfil;
         _pgCredentialsFile = _pgCredentialsFileTemplate.Replace("{profilName}", lastPostgresProfil);
       }
     }
 
     private void LoadProfilCombobox()
     {
-      LoadProfilForDatabase("id_oracle-*.txt", cboOracleConnectionProfil);
-      LoadProfilForDatabase("id_pg-*.txt", cboPostgresqlConnectionProfil);
+      LoadProfilForDatabase("id_oracle-*.txt", cboOracleConnectionProfile);
+      LoadProfilForDatabase("id_pg-*.txt", cboPostgresqlConnectionProfile);
+
+      LoadProfileFiles("id_oracle-*.txt", cboOracleLConnectionProfileFile);
+      LoadProfileFiles("id_pg-*.txt", cboPostgresConnectionProfileFile);
     }
 
-    private static void LoadProfilForDatabase(string databaseName, ComboBox comboBox)
+    private void LoadProfileFiles(string pattern, ComboBox comboBox)
     {
-      var profils = GetProfilFile(databaseName);
+      var profils = GetProfilFile(pattern);
       profils = GetProfilNameFromFilename(profils);
       comboBox.Items.Clear();
       foreach (var item in profils)
@@ -92,7 +95,23 @@ namespace DatabaseMigrator
         comboBox.Items.Add(item);
       }
 
-      if (databaseName.ToLower().Contains("oracle"))
+      if (comboBox.Items.Count == 0)
+      {
+        comboBox.IsEnabled = false;
+      }
+    }
+
+    private static void LoadProfilForDatabase(string databaseNamePattern, ComboBox comboBox)
+    {
+      var profils = GetProfilFile(databaseNamePattern);
+      profils = GetProfilNameFromFilename(profils);
+      comboBox.Items.Clear();
+      foreach (var item in profils)
+      {
+        comboBox.Items.Add(item);
+      }
+
+      if (databaseNamePattern.ToLower().Contains("oracle"))
       {
         if (!comboBox.Items.Contains(Settings.Default.OracleProfil1))
         {
@@ -425,7 +444,7 @@ namespace DatabaseMigrator
       try
       {
         // Save Oracle ID
-        if (chkSaveOracle.IsChecked == true && cboOracleConnectionProfil.SelectedIndex != -1)
+        if (chkSaveOracle.IsChecked == true && cboOracleConnectionProfile.SelectedIndex != -1)
         {
           var oracleCredentials = new DbCredentials
           {
@@ -438,13 +457,13 @@ namespace DatabaseMigrator
 
           var jsonOracle = JsonConvert.SerializeObject(oracleCredentials);
           var encryptedOracle = EncryptionHelper.Encrypt(jsonOracle);
-          File.WriteAllText(GetSelectedProfilforOracle(cboOracleConnectionProfil.SelectedValue.ToString()), encryptedOracle);
-          Settings.Default.OracleSelectedProfil = cboOracleConnectionProfil.SelectedValue.ToString();
+          File.WriteAllText(GetSelectedProfilforOracle(cboOracleConnectionProfile.SelectedValue.ToString()), encryptedOracle);
+          Settings.Default.OracleSelectedProfil = cboOracleConnectionProfile.SelectedValue.ToString();
           Settings.Default.Save();
         }
 
         // Save PostgreSQL ID
-        if (chkSavePostgres.IsChecked == true && cboPostgresqlConnectionProfil.SelectedIndex != -1)
+        if (chkSavePostgres.IsChecked == true && cboPostgresqlConnectionProfile.SelectedIndex != -1)
         {
           var pgCredentials = new DbCredentials
           {
@@ -458,8 +477,8 @@ namespace DatabaseMigrator
 
           var jsonPg = JsonConvert.SerializeObject(pgCredentials);
           var encryptedPg = EncryptionHelper.Encrypt(jsonPg);
-          File.WriteAllText(GetSelectedProfilforPostgresql(cboPostgresqlConnectionProfil.SelectedValue.ToString()), encryptedPg);
-          Settings.Default.PostgresqlSelectedProfil = cboPostgresqlConnectionProfil.SelectedValue.ToString();
+          File.WriteAllText(GetSelectedProfilforPostgresql(cboPostgresqlConnectionProfile.SelectedValue.ToString()), encryptedPg);
+          Settings.Default.PostgresqlSelectedProfil = cboPostgresqlConnectionProfile.SelectedValue.ToString();
           Settings.Default.Save();
         }
       }
@@ -798,7 +817,7 @@ namespace DatabaseMigrator
 
     private void ChkSavePostgres_Checked(object sender, RoutedEventArgs e)
     {
-      if (chkSavePostgres.IsChecked == true && cboPostgresqlConnectionProfil.SelectedIndex == -1)
+      if (chkSavePostgres.IsChecked == true && cboPostgresqlConnectionProfile.SelectedIndex == -1)
       {
         MessageBox.Show("You have to select a profile name for the PostgreSQL connection", "No profile choosen", MessageBoxButton.OK, MessageBoxImage.Hand);
         chkSavePostgres.IsChecked = false;
@@ -807,11 +826,69 @@ namespace DatabaseMigrator
 
     private void ChkSaveOracle_Checked(object sender, RoutedEventArgs e)
     {
-      if (chkSaveOracle.IsChecked == true && cboOracleConnectionProfil.SelectedIndex == -1)
+      if (chkSaveOracle.IsChecked == true && cboOracleConnectionProfile.SelectedIndex == -1)
       {
         MessageBox.Show("You have to select a profile name for the Oracle connection", "No profile choosen", MessageBoxButton.OK, MessageBoxImage.Hand);
         chkSaveOracle.IsChecked = false;
       }
+    }
+
+    private void BtnLoadOracleConnection_Click(object sender, RoutedEventArgs e)
+    {
+      if (cboOracleLConnectionProfileFile.SelectedIndex == -1)
+      {
+        MessageBox.Show("You have to select a profile name for the Oracle connection", "No profil choosen", MessageBoxButton.OK, MessageBoxImage.Hand);
+        return;
+      }
+
+      var profileName = cboOracleLConnectionProfileFile.SelectedValue.ToString();
+      profileName = ChangeProfileNameToProfileFilenameForOracle(profileName);
+      var encryptedOracle = File.ReadAllText(profileName);
+      var decryptedOracle = EncryptionHelper.Decrypt(encryptedOracle);
+      if (!string.IsNullOrEmpty(decryptedOracle))
+      {
+        var oracleCredentials = JsonConvert.DeserializeObject<DbCredentials>(decryptedOracle);
+        txtOracleServer.Text = oracleCredentials.Server;
+        txtOraclePort.Text = oracleCredentials.Port;
+        txtOracleServiceName.Text = oracleCredentials.Database;
+        txtOracleUser.Text = oracleCredentials.Username;
+        pwdOraclePassword.Password = oracleCredentials.Password;
+        chkSaveOracle.IsChecked = true;
+      }
+    }
+
+    private void BtnLoadPostgresqlConnection_Click(object sender, RoutedEventArgs e)
+    {
+      if (cboPostgresqlConnectionProfile.SelectedIndex == -1)
+      {
+        MessageBox.Show("You have to select a profile name for the PostgreSQL connection", "No profile choosen", MessageBoxButton.OK, MessageBoxImage.Hand);
+        return;
+      }
+
+      var profileName = cboPostgresConnectionProfileFile.SelectedValue.ToString();
+      profileName = ChangeProfileNameToProfileFilenameForPostgresql(profileName);
+      var encryptedPg = File.ReadAllText(profileName);
+      var decryptedPg = EncryptionHelper.Decrypt(encryptedPg);
+      if (!string.IsNullOrEmpty(decryptedPg))
+      {
+        var pgCredentials = JsonConvert.DeserializeObject<DbCredentials>(decryptedPg);
+        txtPostgresServer.Text = pgCredentials.Server;
+        txtPostgresPort.Text = pgCredentials.Port;
+        txtPostgresDatabase.Text = pgCredentials.Database;
+        txtPostgresSchema.Text = pgCredentials.Schema;
+        txtPostgresUser.Text = pgCredentials.Username;
+        pwdPostgresPassword.Password = pgCredentials.Password;
+      }
+    }
+
+    private string ChangeProfileNameToProfileFilenameForOracle(string profileName)
+    {
+      return _oracleCredentialsFileTemplate.Replace("{profilName}", profileName);
+    }
+
+    private string ChangeProfileNameToProfileFilenameForPostgresql(string profileName)
+    {
+      return _pgCredentialsFileTemplate.Replace("{profilName}", profileName);
     }
 
     private void BtnMigrateTables_Click(object sender, RoutedEventArgs e)

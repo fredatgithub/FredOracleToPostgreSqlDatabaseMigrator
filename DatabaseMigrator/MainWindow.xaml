@@ -40,6 +40,19 @@
 
           <GroupBox Header="Oracle Connection" Grid.Column="0" Margin="10,43,10,22" FontStyle="Normal" FontWeight="Bold">
             <StackPanel Margin="10">
+              <ComboBox Name="cboOracleLConnectionProfileFile"
+                        Margin="0,0,0,10"
+                        SelectedIndex="0"
+                        FontStyle="Normal" FontWeight="Bold">
+              </ComboBox>
+              <Button Content="Load Connection" 
+                                    Margin="0,0,0,10" 
+                                    Padding="10,5"
+                                    Background="#FF007ACC"
+                                    Foreground="White"
+                                    Height="30"
+                                    Name="btnLoadOracleConnection"
+                      Click="BtnLoadOracleConnection_Click"/>
               <Label Content="Server:" Name="lblOracleServer" FontStyle="Normal" FontWeight="Bold"/>
               <TextBox Margin="0,0,0,10" Name="txtOracleServer" FontStyle="Normal" FontWeight="Medium"/>
               <Label Content="Port:" Name="lblOraclePort" FontStyle="Normal" FontWeight="Bold"/>
@@ -56,7 +69,7 @@
                                     Margin="0,0,0,10"
                                     Name="chkSaveOracle"
                          FontStyle="Normal" FontWeight="Bold" Checked="ChkSaveOracle_Checked"/>
-              <ComboBox Name="cboOracleConnectionProfil" 
+              <ComboBox Name="cboOracleConnectionProfile" 
                         Margin="0,0,0,10"
                         SelectedIndex="0"
                         FontStyle="Normal" FontWeight="Bold">
@@ -78,6 +91,18 @@
 
           <GroupBox Header="PostgreSQL Connection" Grid.Column="1" Margin="10,43,10,22" FontStyle="Normal" FontWeight="Bold">
             <StackPanel Margin="10">
+              <ComboBox Name="cboPostgresConnectionProfileFile"
+                        Margin="0,0,0,10"
+                        SelectedIndex="0"
+                        FontStyle="Normal" FontWeight="Bold" />
+              <Button Content="Load Connection" 
+                       Margin="0,0,0,10" 
+                       Padding="10,5"
+                       Background="#FF007ACC"
+                       Foreground="White"
+                       Height="30"
+                       Name="btnLoadPostgresqlConnection"
+                       Click="BtnLoadPostgresqlConnection_Click"/>
               <Label Content="Server:" Name="lblPostgresServer"/>
               <TextBox Margin="0,0,0,10" Name="txtPostgresServer"/>
               <Label Content="Port:" Name="lblPostgresPort"/>
@@ -91,7 +116,7 @@
               <Label Content="Password:" Name="lblPostgresPassword"/>
               <PasswordBox Margin="0,0,0,10" Name="pwdPostgresPassword"/>
               <CheckBox Content="Save Credentials" Name="chkSavePostgres" Margin="0,0,0,10" Checked="ChkSavePostgres_Checked"/>
-              <ComboBox Name="cboPostgresqlConnectionProfil" 
+              <ComboBox Name="cboPostgresqlConnectionProfile" 
                         Margin="0,0,0,10"
                         SelectedIndex="0"
                         FontStyle="Normal" FontWeight="Bold">
