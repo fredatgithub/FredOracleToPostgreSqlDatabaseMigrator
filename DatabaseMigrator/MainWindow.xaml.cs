@@ -4,11 +4,13 @@ using DatabaseMigrator.Properties;
 using DatabaseMigrator.Views;
 using Newtonsoft.Json;
 using Npgsql;
+using NpgsqlTypes;
 using Oracle.ManagedDataAccess.Client;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -288,7 +290,7 @@ namespace DatabaseMigrator
           }
 
           lstOracleTables.ItemsSource = tables;
-          LogMessage($"Successfully loaded {tables.Count} Oracle tables ✓");
+          LogMessage($"Successfully loaded {tables.Count} Oracle tables ");
           SetButtonSuccess(btnLoadOracleTables);
 
           CompareTables();
@@ -343,7 +345,7 @@ namespace DatabaseMigrator
           }
 
           lstPostgresTables.ItemsSource = tables;
-          LogMessage($"Successfully loaded {tables.Count} PostgreSQL tables ✓");
+          LogMessage($"Successfully loaded {tables.Count} PostgreSQL tables ");
           SetButtonSuccess(btnLoadPostgresTables);
 
           CompareTables();
@@ -555,13 +557,13 @@ namespace DatabaseMigrator
         using (var connection = new OracleConnection(GetOracleConnectionString()))
         {
           await connection.OpenAsync();
-          LogMessage("Oracle connection successful! ✓");
+          LogMessage("Oracle connection successful! ");
           SetButtonSuccess(btnTestOracle);
         }
       }
       catch (Exception exception)
       {
-        LogMessage($"Oracle connection failed: {exception.Message} ✗");
+        LogMessage($"Oracle connection failed: {exception.Message} ");
         SetButtonError(btnTestOracle);
       }
       finally
@@ -581,13 +583,13 @@ namespace DatabaseMigrator
         using (var connection = new NpgsqlConnection(GetPostgresConnectionString()))
         {
           await connection.OpenAsync();
-          LogMessage("PostgreSQL connection successful! ✓");
+          LogMessage("PostgreSQL connection successful! ");
           SetButtonSuccess(btnTestPostgres);
         }
       }
       catch (Exception exception)
       {
-        LogMessage($"PostgreSQL connection failed: {exception.Message} ✗");
+        LogMessage($"PostgreSQL connection failed: {exception.Message} ");
         SetButtonError(btnTestPostgres);
       }
       finally
@@ -919,11 +921,93 @@ namespace DatabaseMigrator
         // log table name
         LogMessage($"Migrating table {table.TableName} from Oracle to PostgreSQL...");
 
-        // empty target table first
-        LogMessage($"Emptying PostgreSQL table {table.TableName}");
+        try
+        {
+          using (var oracleConnection = new OracleConnection(GetOracleConnectionString()))
+          using (var postgresConnection = new NpgsqlConnection(GetPostgresConnectionString()))
+          {
+            oracleConnection.Open();
+            postgresConnection.Open();
 
-        
+            // Truncate target table
+            var truncateCommand = $"TRUNCATE TABLE {targetTable.TableName} RESTART IDENTITY CASCADE";
+            using (var cmd = new NpgsqlCommand(truncateCommand, postgresConnection))
+            {
+              cmd.ExecuteNonQuery();
+              LogMessage($"Table {targetTable.TableName} truncated successfully");
+            }
+
+            // Get data from Oracle
+            var selectCommand = $"SELECT * FROM {table.TableName}";
+            using (var cmd = new OracleCommand(selectCommand, oracleConnection))
+            using (var reader = cmd.ExecuteReader())
+            {
+              // Get column names
+              var schemaTable = reader.GetSchemaTable();
+              var columns = new List<string>();
+              foreach (DataRow row in schemaTable.Rows)
+              {
+                columns.Add(row["ColumnName"].ToString());
+              }
+
+              // Prepare insert statement
+              var columnList = string.Join(",", columns);
+              var paramList = string.Join(",", columns.Select(c => $"@{c}"));
+              var insertCommand = $"INSERT INTO {targetTable.TableName} ({columnList}) VALUES ({paramList})";
+
+              // Batch insert data
+              using (var transaction = postgresConnection.BeginTransaction())
+              {
+                try
+                {
+                  using (var insertCmd = new NpgsqlCommand(insertCommand, postgresConnection, transaction))
+                  {
+                    // Add parameters
+                    foreach (var column in columns)
+                    {
+                      insertCmd.Parameters.Add(new NpgsqlParameter($"@{column}", NpgsqlDbType.Unknown));
+                    }
+
+                    int rowCount = 0;
+                    while (reader.Read())
+                    {
+                      for (int i = 0; i < columns.Count; i++)
+                      {
+                        var value = reader.IsDBNull(i) ? DBNull.Value : reader.GetValue(i);
+                        insertCmd.Parameters[i].Value = value;
+                      }
+
+                      insertCmd.ExecuteNonQuery();
+                      rowCount++;
+
+                      if (rowCount % 1000 == 0)
+                      {
+                        LogMessage($"Inserted {rowCount} rows into {targetTable.TableName}");
+                      }
+                    }
+
+                    transaction.Commit();
+                    LogMessage($"Successfully migrated {rowCount} rows from {table.TableName} to PostgreSQL");
+                  }
+                }
+                catch (Exception exception)
+                {
+                  transaction.Rollback();
+                  throw new Exception($"Error while inserting data into {targetTable.TableName}: {exception.Message}");
+                }
+              }
+            }
+          }
+        }
+        catch (Exception exception)
+        {
+          LogMessage($"Error migrating table {table.TableName}: {exception.Message}");
+          MessageBox.Show($"Error migrating table {table.TableName}: {exception.Message}", "Migration Error", MessageBoxButton.OK, MessageBoxImage.Error);
+          return;
+        }
       }
+
+      MessageBox.Show("Migration completed successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
     }
   }
 }
