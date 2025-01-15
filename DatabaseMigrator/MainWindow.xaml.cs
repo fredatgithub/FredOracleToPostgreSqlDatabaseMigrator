@@ -516,17 +516,17 @@ namespace DatabaseMigrator
       txtLogs.ScrollToEnd();
     }
 
-    private void ResetButtonColor(Button button)
+    private static void ResetButtonColor(Button button)
     {
       button.Background = new SolidColorBrush(Color.FromRgb(0x00, 0x7A, 0xCC));
     }
 
-    private void SetButtonSuccess(Button button)
+    private static void SetButtonSuccess(Button button)
     {
       button.Background = new SolidColorBrush(Color.FromRgb(40, 167, 69));
     }
 
-    private void SetButtonError(Button button)
+    private static void SetButtonError(Button button)
     {
       button.Background = new SolidColorBrush(Color.FromRgb(220, 53, 69));
     }
@@ -756,7 +756,7 @@ namespace DatabaseMigrator
           IsSelected = false
         }).OrderBy(p => p.ProcedureName).ToList();
 
-        LogMessage($"Loaded {procedures.Count()} PostgreSQL stored procedures.");
+        LogMessage($"Loaded {procedures.Count} PostgreSQL stored procedures.");
       }
       catch (Exception exception)
       {
@@ -811,6 +811,47 @@ namespace DatabaseMigrator
       {
         MessageBox.Show("You have to select a profile name for the Oracle connection", "No profile choosen", MessageBoxButton.OK, MessageBoxImage.Hand);
         chkSaveOracle.IsChecked = false;
+      }
+    }
+
+    private void BtnMigrateTables_Click(object sender, RoutedEventArgs e)
+    {
+      var selectedOracleTables = lstOracleTables.ItemsSource.Cast<TableInfo>().Where(t => t.IsSelected).ToList();
+      var allPostgresTables = lstPostgresTables.ItemsSource.Cast<TableInfo>().ToList();
+      if (selectedOracleTables.Count == 0)
+      {
+        MessageBox.Show("Please select at least one table from the source database to migrate.", "No tables selected", MessageBoxButton.OK, MessageBoxImage.Hand);
+        return;
+      }
+
+      // Make sure the target table has not the same number of records as the source table
+      foreach (var table in selectedOracleTables)
+      {
+        if (table.RowCount == 0)
+        {
+          MessageBox.Show($"There is not record in {table.TableName} table to copy in the source database to migrate.", "No record to copy", MessageBoxButton.OK, MessageBoxImage.Hand);
+          return;
+        }
+
+        var targetTable = allPostgresTables.FirstOrDefault(t => t.TableName.Equals(table.TableName, StringComparison.OrdinalIgnoreCase));
+        if (table.RowCount == targetTable.RowCount)
+        {
+          MessageBox.Show($"The number of record for the source table is equal to the target table.", "Similar table records", MessageBoxButton.OK, MessageBoxImage.Hand);
+          return;
+        }
+
+        if (targetTable.RowCount > 0)
+        {
+          MessageBox.Show($"The target table {targetTable.TableName} is not empty, it will be emptied before migrating the data.", "Target table not empty", MessageBoxButton.OK, MessageBoxImage.Hand);
+        }
+
+        // log table name
+        LogMessage($"Migrating table {table.TableName} from Oracle to PostgreSQL...");
+
+        // empty target table first
+        LogMessage($"Emptying PostgreSQL table {table.TableName}");
+
+        
       }
     }
   }

@@ -125,6 +125,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
               </Grid.RowDefinitions>
 
               <StackPanel Grid.Row="0">
@@ -164,6 +165,9 @@
                 <TextBlock Text="Selected: " VerticalAlignment="Center"/>
                 <TextBlock Name="txtOracleSelectedCount" Text="0" VerticalAlignment="Center"/>
                 <TextBlock Name="txtOracleTableLabel" Text=" table" VerticalAlignment="Center"/>
+              </StackPanel>
+              <StackPanel Grid.Row="3" Orientation="Horizontal">
+                <Button x:Name = "btnMigrateTables" Content="Copy selected tables to target database" Margin="5,5,5,5" Padding="10,5" Background="#FF007ACC" Foreground="White" Click="BtnMigrateTables_Click"/>
               </StackPanel>
             </Grid>
           </GroupBox>

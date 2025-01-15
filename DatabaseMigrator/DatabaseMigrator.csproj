@@ -132,6 +132,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Helpers\EncryptionHelper.cs" />
+    <Compile Include="MigrationWindow.cs" />
     <Compile Include="Models\DbCredentials.cs" />
     <Compile Include="Models\IOracleService.cs" />
     <Compile Include="Models\IPostgresService.cs" />
