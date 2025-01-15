@@ -1019,13 +1019,13 @@ namespace DatabaseMigrator
 
     private NpgsqlDbType GetNpgsqlType(Type type)
     {
-      if (type == typeof(int))
+      if (type == typeof(int) || type == typeof(Int32))
         return NpgsqlDbType.Integer;
 
-      if (type == typeof(long))
+      if (type == typeof(long) || type == typeof(Int64))
         return NpgsqlDbType.Bigint;
 
-      if (type == typeof(string))
+      if (type == typeof(string) || type == typeof(char))
         return NpgsqlDbType.Text;
 
       if (type == typeof(DateTime))
@@ -1037,7 +1037,7 @@ namespace DatabaseMigrator
       if (type == typeof(byte[]))
         return NpgsqlDbType.Bytea;
 
-      if (type == typeof(float))
+      if (type == typeof(float) || type == typeof(Single))
         return NpgsqlDbType.Real;
 
       if (type == typeof(double))
@@ -1046,7 +1046,24 @@ namespace DatabaseMigrator
       if (type == typeof(decimal))
         return NpgsqlDbType.Numeric;
 
-      throw new ArgumentException("Unsupported type", nameof(type));
+      if (type == typeof(short) || type == typeof(Int16))
+        return NpgsqlDbType.Smallint;
+
+      if (type == typeof(byte))
+        return NpgsqlDbType.Smallint;
+
+      if (type == typeof(Guid))
+        return NpgsqlDbType.Uuid;
+
+      if (type == typeof(TimeSpan))
+        return NpgsqlDbType.Interval;
+
+      if (type == typeof(DateTimeOffset))
+        return NpgsqlDbType.TimestampTz;
+
+      // Pour déboguer, affichons le type non supporté
+      LogMessage($"Type non supporté détecté : {type.FullName}");
+      throw new ArgumentException($"Type non supporté : {type.FullName}", nameof(type));
     }
   }
 }
