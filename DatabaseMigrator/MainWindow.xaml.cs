@@ -938,10 +938,12 @@ namespace DatabaseMigrator
             {
               cmd.Connection = postgresConnection;
               
+              var schemaTable = $"{txtPostgresSchema.Text}.{targetTable.TableName}";
+              
               // Disable foreign key constraints
-              cmd.CommandText = $"ALTER TABLE {targetTable.TableName} DISABLE TRIGGER USER";
+              cmd.CommandText = $"ALTER TABLE {schemaTable} DISABLE TRIGGER USER";
               cmd.ExecuteNonQuery();
-              LogMessage($"Disabled user triggers for table {targetTable.TableName}");
+              LogMessage($"Disabled user triggers for table {schemaTable}");
 
               // Désactiver temporairement la vérification des clés étrangères pour cette session
               cmd.CommandText = "SET session_replication_role = 'replica';";
@@ -949,9 +951,9 @@ namespace DatabaseMigrator
               LogMessage("Disabled foreign key checks");
               
               // Truncate the table
-              cmd.CommandText = $"TRUNCATE TABLE {targetTable.TableName} RESTART IDENTITY CASCADE";
+              cmd.CommandText = $"TRUNCATE TABLE {schemaTable} RESTART IDENTITY CASCADE";
               cmd.ExecuteNonQuery();
-              LogMessage($"Table {targetTable.TableName} truncated successfully");
+              LogMessage($"Table {schemaTable} truncated successfully");
 
               try
               {
@@ -961,10 +963,10 @@ namespace DatabaseMigrator
                 using (var reader = oracleCmd.ExecuteReader())
                 {
                   // Get column names and types
-                  var schemaTable = reader.GetSchemaTable();
+                  var schemaInfo = reader.GetSchemaTable();
                   var columns = new List<string>();
                   var columnTypes = new List<Type>();
-                  foreach (DataRow row in schemaTable.Rows)
+                  foreach (DataRow row in schemaInfo.Rows)
                   {
                     columns.Add(row["ColumnName"].ToString());
                     columnTypes.Add((Type)row["DataType"]);
@@ -973,7 +975,7 @@ namespace DatabaseMigrator
                   // Prepare insert statement
                   var columnList = string.Join(",", columns);
                   var paramList = string.Join(",", columns.Select(c => $"@{c}"));
-                  var insertCommand = $"INSERT INTO {targetTable.TableName} ({columnList}) VALUES ({paramList})";
+                  var insertCommand = $"INSERT INTO {schemaTable} ({columnList}) VALUES ({paramList})";
 
                   // Batch insert data
                   using (var transaction = postgresConnection.BeginTransaction())
@@ -1003,7 +1005,7 @@ namespace DatabaseMigrator
 
                           if (rowCount % 1000 == 0)
                           {
-                            LogMessage($"Inserted {rowCount} rows into {targetTable.TableName}");
+                            LogMessage($"Inserted {rowCount} rows into {schemaTable}");
                           }
                         }
 
@@ -1014,7 +1016,7 @@ namespace DatabaseMigrator
                     catch (Exception exception)
                     {
                       transaction.Rollback();
-                      throw new Exception($"Error while inserting data into {targetTable.TableName}: {exception.Message}");
+                      throw new Exception($"Error while inserting data into {schemaTable}: {exception.Message}");
                     }
                   }
                 }
@@ -1022,13 +1024,13 @@ namespace DatabaseMigrator
               finally
               {
                 // Re-enable foreign key constraints
-                cmd.CommandText = $"ALTER TABLE {targetTable.TableName} ENABLE TRIGGER USER";
+                cmd.CommandText = $"ALTER TABLE {schemaTable} ENABLE TRIGGER USER";
                 cmd.ExecuteNonQuery();
                 
                 // Réactiver la vérification des clés étrangères
                 cmd.CommandText = "SET session_replication_role = 'origin';";
                 cmd.ExecuteNonQuery();
-                LogMessage($"Re-enabled constraints for table {targetTable.TableName}");
+                LogMessage($"Re-enabled constraints for table {schemaTable}");
               }
             }
           }
