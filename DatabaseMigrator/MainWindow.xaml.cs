@@ -933,7 +933,6 @@ namespace DatabaseMigrator
             var truncateCommand = $"TRUNCATE TABLE {targetTable.TableName} RESTART IDENTITY CASCADE";
             using (var cmd = new NpgsqlCommand(truncateCommand, postgresConnection))
             {
-#pragma warning disable EC72 // Don't execute SQL commands in loops
               cmd.ExecuteNonQuery();
               LogMessage($"Table {targetTable.TableName} truncated successfully");
             }
@@ -943,12 +942,14 @@ namespace DatabaseMigrator
             using (var cmd = new OracleCommand(selectCommand, oracleConnection))
             using (var reader = cmd.ExecuteReader())
             {
-              // Get column names
+              // Get column names and types
               var schemaTable = reader.GetSchemaTable();
               var columns = new List<string>();
+              var columnTypes = new List<Type>();
               foreach (DataRow row in schemaTable.Rows)
               {
                 columns.Add(row["ColumnName"].ToString());
+                columnTypes.Add((Type)row["DataType"]);
               }
 
               // Prepare insert statement
@@ -963,10 +964,11 @@ namespace DatabaseMigrator
                 {
                   using (var insertCmd = new NpgsqlCommand(insertCommand, postgresConnection, transaction))
                   {
-                    // Add parameters
-                    foreach (var column in columns)
+                    // Add parameters with correct types
+                    for (int i = 0; i < columns.Count; i++)
                     {
-                      insertCmd.Parameters.Add(new NpgsqlParameter($"@{column}", NpgsqlDbType.Unknown));
+                      var npgsqlType = GetNpgsqlType(columnTypes[i]);
+                      insertCmd.Parameters.Add(new NpgsqlParameter($"@{columns[i]}", npgsqlType));
                     }
 
                     int rowCount = 0;
@@ -998,7 +1000,6 @@ namespace DatabaseMigrator
                 }
               }
             }
-#pragma warning restore EC72 // Don't execute SQL commands in loops
           }
         }
         catch (Exception exception)
@@ -1010,6 +1011,38 @@ namespace DatabaseMigrator
       }
 
       MessageBox.Show("Migration completed successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private NpgsqlDbType GetNpgsqlType(Type type)
+    {
+      if (type == typeof(int))
+        return NpgsqlDbType.Integer;
+
+      if (type == typeof(long))
+        return NpgsqlDbType.Bigint;
+
+      if (type == typeof(string))
+        return NpgsqlDbType.Text;
+
+      if (type == typeof(DateTime))
+        return NpgsqlDbType.Timestamp;
+
+      if (type == typeof(bool))
+        return NpgsqlDbType.Boolean;
+
+      if (type == typeof(byte[]))
+        return NpgsqlDbType.Bytea;
+
+      if (type == typeof(float))
+        return NpgsqlDbType.Real;
+
+      if (type == typeof(double))
+        return NpgsqlDbType.Double;
+
+      if (type == typeof(decimal))
+        return NpgsqlDbType.Numeric;
+
+      throw new ArgumentException("Unsupported type", nameof(type));
     }
   }
 }
