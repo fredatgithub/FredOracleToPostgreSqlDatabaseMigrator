@@ -933,75 +933,92 @@ namespace DatabaseMigrator
             oracleConnection.Open();
             postgresConnection.Open();
 
-            // Truncate target table
-            var truncateCommand = $"TRUNCATE TABLE {targetTable.TableName} RESTART IDENTITY CASCADE";
-            using (var cmd = new NpgsqlCommand(truncateCommand, postgresConnection))
+            // Truncate target table and disable foreign key constraints
+            using (var cmd = new NpgsqlCommand())
             {
+              cmd.Connection = postgresConnection;
+              
+              // Disable foreign key constraints for this table
+              cmd.CommandText = $"ALTER TABLE {targetTable.TableName} DISABLE TRIGGER ALL";
+              cmd.ExecuteNonQuery();
+              
+              // Truncate the table
+              cmd.CommandText = $"TRUNCATE TABLE {targetTable.TableName} RESTART IDENTITY CASCADE";
               cmd.ExecuteNonQuery();
               LogMessage($"Table {targetTable.TableName} truncated successfully");
-            }
 
-            // Get data from Oracle
-            var selectCommand = $"SELECT * FROM {table.TableName}";
-            using (var cmd = new OracleCommand(selectCommand, oracleConnection))
-            using (var reader = cmd.ExecuteReader())
-            {
-              // Get column names and types
-              var schemaTable = reader.GetSchemaTable();
-              var columns = new List<string>();
-              var columnTypes = new List<Type>();
-              foreach (DataRow row in schemaTable.Rows)
+              try
               {
-                columns.Add(row["ColumnName"].ToString());
-                columnTypes.Add((Type)row["DataType"]);
-              }
-
-              // Prepare insert statement
-              var columnList = string.Join(",", columns);
-              var paramList = string.Join(",", columns.Select(c => $"@{c}"));
-              var insertCommand = $"INSERT INTO {targetTable.TableName} ({columnList}) VALUES ({paramList})";
-
-              // Batch insert data
-              using (var transaction = postgresConnection.BeginTransaction())
-              {
-                try
+                // Get data from Oracle
+                var selectCommand = $"SELECT * FROM {table.TableName}";
+                using (var oracleCmd = new OracleCommand(selectCommand, oracleConnection))
+                using (var reader = oracleCmd.ExecuteReader())
                 {
-                  using (var insertCmd = new NpgsqlCommand(insertCommand, postgresConnection, transaction))
+                  // Get column names and types
+                  var schemaTable = reader.GetSchemaTable();
+                  var columns = new List<string>();
+                  var columnTypes = new List<Type>();
+                  foreach (DataRow row in schemaTable.Rows)
                   {
-                    // Add parameters with correct types
-                    for (int i = 0; i < columns.Count; i++)
+                    columns.Add(row["ColumnName"].ToString());
+                    columnTypes.Add((Type)row["DataType"]);
+                  }
+
+                  // Prepare insert statement
+                  var columnList = string.Join(",", columns);
+                  var paramList = string.Join(",", columns.Select(c => $"@{c}"));
+                  var insertCommand = $"INSERT INTO {targetTable.TableName} ({columnList}) VALUES ({paramList})";
+
+                  // Batch insert data
+                  using (var transaction = postgresConnection.BeginTransaction())
+                  {
+                    try
                     {
-                      var npgsqlType = GetNpgsqlType(columnTypes[i]);
-                      insertCmd.Parameters.Add(new NpgsqlParameter($"@{columns[i]}", npgsqlType));
-                    }
+                      using (var insertCmd = new NpgsqlCommand(insertCommand, postgresConnection, transaction))
+                      {
+                        // Add parameters with correct types
+                        for (int i = 0; i < columns.Count; i++)
+                        {
+                          var npgsqlType = GetNpgsqlType(columnTypes[i]);
+                          insertCmd.Parameters.Add(new NpgsqlParameter($"@{columns[i]}", npgsqlType));
+                        }
 
-                    int rowCount = 0;
-                    while (reader.Read())
+                        int rowCount = 0;
+                        while (reader.Read())
+                        {
+                          for (int i = 0; i < columns.Count; i++)
+                          {
+                            var value = reader.IsDBNull(i) ? DBNull.Value : reader.GetValue(i);
+                            insertCmd.Parameters[i].Value = value;
+                          }
+
+                          insertCmd.ExecuteNonQuery();
+                          rowCount++;
+
+                          if (rowCount % 1000 == 0)
+                          {
+                            LogMessage($"Inserted {rowCount} rows into {targetTable.TableName}");
+                          }
+                        }
+
+                        transaction.Commit();
+                        LogMessage($"Successfully migrated {rowCount} rows from {table.TableName} to PostgreSQL");
+                      }
+                    }
+                    catch (Exception exception)
                     {
-                      for (int i = 0; i < columns.Count; i++)
-                      {
-                        var value = reader.IsDBNull(i) ? DBNull.Value : reader.GetValue(i);
-                        insertCmd.Parameters[i].Value = value;
-                      }
-
-                      insertCmd.ExecuteNonQuery();
-                      rowCount++;
-
-                      if (rowCount % 1000 == 0)
-                      {
-                        LogMessage($"Inserted {rowCount} rows into {targetTable.TableName}");
-                      }
+                      transaction.Rollback();
+                      throw new Exception($"Error while inserting data into {targetTable.TableName}: {exception.Message}");
                     }
-
-                    transaction.Commit();
-                    LogMessage($"Successfully migrated {rowCount} rows from {table.TableName} to PostgreSQL");
                   }
                 }
-                catch (Exception exception)
-                {
-                  transaction.Rollback();
-                  throw new Exception($"Error while inserting data into {targetTable.TableName}: {exception.Message}");
-                }
+              }
+              finally
+              {
+                // Re-enable foreign key constraints
+                cmd.CommandText = $"ALTER TABLE {targetTable.TableName} ENABLE TRIGGER ALL";
+                cmd.ExecuteNonQuery();
+                LogMessage($"Re-enabled constraints for table {targetTable.TableName}");
               }
             }
           }
