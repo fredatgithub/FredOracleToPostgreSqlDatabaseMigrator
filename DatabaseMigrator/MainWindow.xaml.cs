@@ -603,12 +603,43 @@ namespace DatabaseMigrator
 
     private string GetOracleConnectionString()
     {
-      return $"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={txtOracleServer.Text})(PORT={txtOraclePort.Text}))(CONNECT_DATA=(SERVICE_NAME={txtOracleServiceName.Text})));User Id={txtOracleUser.Text};Password={pwdOraclePassword.Password};";
+      string oracleServer = string.Empty;
+      string oraclePort = string.Empty;
+      string oracleServiceName = string.Empty;
+      string oracleUser = string.Empty;
+      string oraclePassword = string.Empty;
+
+      Application.Current.Dispatcher.Invoke(() =>
+      {
+        oracleServer = txtOracleServer.Text;
+        oraclePort = txtOraclePort.Text;
+        oracleServiceName = txtOracleServiceName.Text;
+        oracleUser = txtOracleUser.Text;
+        oraclePassword = pwdOraclePassword.Password;
+      });
+
+      return $"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={oracleServer})(PORT={oraclePort}))(CONNECT_DATA=(SERVICE_NAME={oracleServiceName})));User Id={oracleUser};Password={oraclePassword};";
     }
 
     private string GetPostgresConnectionString()
     {
-      return $"Host={txtPostgresServer.Text};Port={txtPostgresPort.Text};Database={txtPostgresDatabase.Text};Username={txtPostgresUser.Text};Password={pwdPostgresPassword.Password}";
+      string server = string.Empty;
+      string port = string.Empty;
+      string database = string.Empty;
+      string user = string.Empty;
+      string password = string.Empty;
+
+      Application.Current.Dispatcher.Invoke(() =>
+      {
+        server = txtPostgresServer.Text;
+        port = txtPostgresPort.Text;
+        database = txtPostgresDatabase.Text;
+        user = txtPostgresUser.Text;
+        password = pwdPostgresPassword.Password;
+      });
+
+      return $"Host={server};Port={port};Database={database};Username={user};Password={password}";
+
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
