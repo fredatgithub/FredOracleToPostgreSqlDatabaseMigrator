@@ -933,6 +933,7 @@ namespace DatabaseMigrator
             var truncateCommand = $"TRUNCATE TABLE {targetTable.TableName} RESTART IDENTITY CASCADE";
             using (var cmd = new NpgsqlCommand(truncateCommand, postgresConnection))
             {
+#pragma warning disable EC72 // Don't execute SQL commands in loops
               cmd.ExecuteNonQuery();
               LogMessage($"Table {targetTable.TableName} truncated successfully");
             }
@@ -997,6 +998,7 @@ namespace DatabaseMigrator
                 }
               }
             }
+#pragma warning restore EC72 // Don't execute SQL commands in loops
           }
         }
         catch (Exception exception)
