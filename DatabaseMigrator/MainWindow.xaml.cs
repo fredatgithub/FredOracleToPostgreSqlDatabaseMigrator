@@ -938,9 +938,15 @@ namespace DatabaseMigrator
             {
               cmd.Connection = postgresConnection;
               
-              // Disable foreign key constraints for this table
-              cmd.CommandText = $"ALTER TABLE {targetTable.TableName} DISABLE TRIGGER ALL";
+              // Disable foreign key constraints
+              cmd.CommandText = $"ALTER TABLE {targetTable.TableName} DISABLE TRIGGER USER";
               cmd.ExecuteNonQuery();
+              LogMessage($"Disabled user triggers for table {targetTable.TableName}");
+
+              // Désactiver temporairement la vérification des clés étrangères pour cette session
+              cmd.CommandText = "SET session_replication_role = 'replica';";
+              cmd.ExecuteNonQuery();
+              LogMessage("Disabled foreign key checks");
               
               // Truncate the table
               cmd.CommandText = $"TRUNCATE TABLE {targetTable.TableName} RESTART IDENTITY CASCADE";
@@ -1016,7 +1022,11 @@ namespace DatabaseMigrator
               finally
               {
                 // Re-enable foreign key constraints
-                cmd.CommandText = $"ALTER TABLE {targetTable.TableName} ENABLE TRIGGER ALL";
+                cmd.CommandText = $"ALTER TABLE {targetTable.TableName} ENABLE TRIGGER USER";
+                cmd.ExecuteNonQuery();
+                
+                // Réactiver la vérification des clés étrangères
+                cmd.CommandText = "SET session_replication_role = 'origin';";
                 cmd.ExecuteNonQuery();
                 LogMessage($"Re-enabled constraints for table {targetTable.TableName}");
               }
