@@ -682,7 +682,7 @@ namespace DatabaseMigrator
       }
     }
 
-    private void UpdatePostgresSelectedCount()
+    public void UpdatePostgresSelectedCount()
     {
       if (lstPostgresTables.ItemsSource is IEnumerable<TableInfo> tables)
       {
