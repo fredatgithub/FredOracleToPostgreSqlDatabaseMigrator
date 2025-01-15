@@ -527,8 +527,11 @@ namespace DatabaseMigrator
     private void LogMessage(string message)
     {
       string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-      txtLogs.AppendText($"[{timestamp}] {message}{Environment.NewLine}");
-      txtLogs.ScrollToEnd();
+      Dispatcher.Invoke(() =>
+      {
+        txtLogs.AppendText($"[{timestamp}] {message}{Environment.NewLine}");
+        txtLogs.ScrollToEnd();
+      });
     }
 
     private static void ResetButtonColor(Button button)
