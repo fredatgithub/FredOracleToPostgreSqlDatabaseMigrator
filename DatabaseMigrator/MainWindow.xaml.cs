@@ -687,7 +687,7 @@ namespace DatabaseMigrator
       return count > 1 ? "s" : "";
     }
 
-    private void UpdateOracleSelectedCount()
+    public void UpdateOracleSelectedCount()
     {
       if (lstOracleTables.ItemsSource is IEnumerable<TableInfo> tables)
       {
@@ -727,7 +727,9 @@ namespace DatabaseMigrator
       }
     }
 
+#pragma warning disable EC84 // Avoid async void methods
     private async void BtnLoadOracleStoredProcs_Click(object sender, RoutedEventArgs e)
+#pragma warning restore EC84 // Avoid async void methods
     {
       try
       {
@@ -756,7 +758,9 @@ namespace DatabaseMigrator
       }
     }
 
+#pragma warning disable EC84 // Avoid async void methods
     private async void BtnLoadPostgresStoredProcs_Click(object sender, RoutedEventArgs e)
+#pragma warning restore EC84 // Avoid async void methods
     {
       try
       {
