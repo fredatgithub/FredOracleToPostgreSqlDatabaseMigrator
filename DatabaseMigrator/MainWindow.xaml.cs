@@ -182,12 +182,6 @@ namespace DatabaseMigrator
       return result;
     }
 
-    private static List<string> RemoveFirstCharacters(List<string> list, int nbCharacters = 0)
-    {
-      return list.Select(ligne => ligne.Length > nbCharacters ? ligne.Substring(nbCharacters) : string.Empty).ToList();
-    }
-
-
     private static List<string> GetAllFiles(string pattern)
     {
       var result = new List<string>();
