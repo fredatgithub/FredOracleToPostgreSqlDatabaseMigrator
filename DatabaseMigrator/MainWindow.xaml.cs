@@ -682,6 +682,287 @@ namespace DatabaseMigrator
       SaveLogs();
     }
 
+    private async void BtnMigrateTables_Click(object sender, RoutedEventArgs e)
+    {
+      try
+      {
+        var selectedOracleTables = lstOracleTables.ItemsSource.Cast<TableInfo>().Where(t => t.IsSelected).ToList();
+        if (selectedOracleTables.Count == 0)
+        {
+          MessageBox.Show("Please select at least one table from the source database to migrate.", "No tables selected", MessageBoxButton.OK, MessageBoxImage.Hand);
+          return;
+        }
+
+        var loadingWindow = new LoadingWindow(this) { Title = "Migrating Data..." };
+        loadingWindow.Show();
+
+        try
+        {
+          await Task.Run(() =>
+          {
+            foreach (var table in selectedOracleTables)
+            {
+              try
+              {
+                Dispatcher.Invoke(() => loadingWindow.lblStatus.Content = $"Migrating table {table.TableName}...");
+                MigrateTable(table);
+                LogMessage($"Successfully migrated table {table.TableName}");
+              }
+              catch (Exception ex)
+              {
+                LogMessage($"Error migrating table {table.TableName}: {ex.Message}");
+                MessageBox.Show($"Error migrating table {table.TableName}: {ex.Message}", "Migration Error", MessageBoxButton.OK, MessageBoxImage.Error);
+              }
+            }
+          });
+
+          MessageBox.Show("Migration completed. Check the log for details.", "Migration Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        finally
+        {
+          loadingWindow.Close();
+        }
+      }
+      catch (Exception ex)
+      {
+        LogMessage($"Migration error: {ex.Message}");
+        MessageBox.Show($"Migration error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+      }
+    }
+
+    private void MigrateTable(TableInfo targetTable)
+    {
+      using (var oracleConnection = new OracleConnection(GetOracleConnectionString()))
+      using (var postgresConnection = new NpgsqlConnection(GetPostgresConnectionString()))
+      {
+        try
+        {
+          oracleConnection.Open();
+          postgresConnection.Open();
+
+          // Truncate target table and drop foreign key constraints
+          using (var cmd = new NpgsqlCommand())
+          {
+            cmd.Connection = postgresConnection;
+            var schemaTable = $"{txtPostgresSchema.Text}.{targetTable.TableName}";
+
+            // Get all foreign key constraints for this table
+            cmd.CommandText = @"
+              SELECT 
+                  tc.constraint_name,
+                  ccu.table_schema as foreign_table_schema,
+                  ccu.table_name as foreign_table_name
+              FROM information_schema.table_constraints tc
+              JOIN information_schema.constraint_column_usage ccu 
+                  ON tc.constraint_name = ccu.constraint_name
+              WHERE tc.constraint_type = 'FOREIGN KEY'
+              AND tc.table_schema = @schema
+              AND tc.table_name = @tablename";
+            cmd.Parameters.AddWithValue("schema", txtPostgresSchema.Text);
+            cmd.Parameters.AddWithValue("tablename", targetTable.TableName);
+
+            var constraints = new List<(string name, string schema, string table)>();
+            using (var reader = cmd.ExecuteReader())
+            {
+              while (reader.Read())
+              {
+                constraints.Add((
+                  reader.GetString(0),
+                  reader.GetString(1),
+                  reader.GetString(2)
+                ));
+              }
+            }
+            cmd.Parameters.Clear();
+
+            // Drop each foreign key constraint
+            foreach (var constraint in constraints)
+            {
+              cmd.CommandText = $"ALTER TABLE {schemaTable} DROP CONSTRAINT {constraint.name}";
+              cmd.ExecuteNonQuery();
+            }
+            LogMessage($"Dropped {constraints.Count} foreign key constraints for table {schemaTable}");
+
+            // Disable user triggers
+            cmd.CommandText = $"ALTER TABLE {schemaTable} DISABLE TRIGGER USER";
+            cmd.ExecuteNonQuery();
+            LogMessage($"Disabled user triggers for table {schemaTable}");
+
+            // Truncate the table
+            cmd.CommandText = $"TRUNCATE TABLE {schemaTable} RESTART IDENTITY CASCADE";
+            cmd.ExecuteNonQuery();
+            LogMessage($"Table {schemaTable} truncated successfully");
+
+            try
+            {
+              // Get data from Oracle
+              var selectCommand = $"SELECT * FROM {targetTable.TableName}";
+              using (var oracleCmd = new OracleCommand(selectCommand, oracleConnection))
+              using (var reader = oracleCmd.ExecuteReader())
+              {
+                // Get column names and types
+                var schemaInfo = reader.GetSchemaTable();
+                var columns = new List<string>();
+                var columnTypes = new List<Type>();
+                foreach (DataRow row in schemaInfo.Rows)
+                {
+                  columns.Add(row["ColumnName"].ToString());
+                  columnTypes.Add((Type)row["DataType"]);
+                }
+
+                // Prepare insert statement
+                var columnList = string.Join(",", columns);
+                var paramList = string.Join(",", columns.Select(c => $"@{c}"));
+                var insertCommand = $"INSERT INTO {schemaTable} ({columnList}) VALUES ({paramList})";
+
+                // Batch insert data
+                using (var transaction = postgresConnection.BeginTransaction())
+                {
+                  try
+                  {
+                    using (var insertCmd = new NpgsqlCommand(insertCommand, postgresConnection, transaction))
+                    {
+                      // Add parameters with correct types
+                      for (int i = 0; i < columns.Count; i++)
+                      {
+                        var npgsqlType = GetNpgsqlType(columnTypes[i]);
+                        insertCmd.Parameters.Add(new NpgsqlParameter($"@{columns[i]}", npgsqlType));
+                      }
+
+                      int rowCount = 0;
+                      while (reader.Read())
+                      {
+                        for (int i = 0; i < columns.Count; i++)
+                        {
+                          var value = reader.IsDBNull(i) ? DBNull.Value : reader.GetValue(i);
+                          insertCmd.Parameters[i].Value = value;
+                        }
+
+                        insertCmd.ExecuteNonQuery();
+                        rowCount++;
+
+                        if (rowCount % 1000 == 0)
+                        {
+                          LogMessage($"Inserted {rowCount} rows into {schemaTable}");
+                        }
+                      }
+
+                      transaction.Commit();
+                      LogMessage($"Successfully migrated {rowCount} rows from {targetTable.TableName} to PostgreSQL");
+                    }
+                  }
+                  catch (Exception exception)
+                  {
+                    transaction.Rollback();
+                    throw new Exception($"Error while inserting data into {schemaTable}: {exception.Message}");
+                  }
+                }
+              }
+            }
+            finally
+            {
+              // Re-enable user triggers
+              cmd.CommandText = $"ALTER TABLE {schemaTable} ENABLE TRIGGER USER";
+              cmd.ExecuteNonQuery();
+
+              // Recreate each foreign key constraint
+              foreach (var constraint in constraints)
+              {
+                try
+                {
+                  // Get the constraint definition
+                  cmd.CommandText = $@"
+                    SELECT pg_get_constraintdef(oid) 
+                    FROM pg_constraint 
+                    WHERE conname = @constraintname";
+                  cmd.Parameters.AddWithValue("constraintname", constraint.name);
+                  string constraintDef = "";
+                  using (var reader = cmd.ExecuteReader())
+                  {
+                    if (reader.Read())
+                    {
+                      constraintDef = reader.GetString(0);
+                    }
+                  }
+                  cmd.Parameters.Clear();
+
+                  if (!string.IsNullOrEmpty(constraintDef))
+                  {
+                    // Recreate the constraint
+                    cmd.CommandText = $"ALTER TABLE {schemaTable} ADD CONSTRAINT {constraint.name} {constraintDef}";
+                    cmd.ExecuteNonQuery();
+                    LogMessage($"Recreated constraint {constraint.name}");
+                  }
+                }
+                catch (Exception ex)
+                {
+                  LogMessage($"Warning: Could not recreate constraint {constraint.name}: {ex.Message}");
+                }
+              }
+              LogMessage($"Finished recreating constraints for table {schemaTable}");
+            }
+          }
+        }
+        catch (Exception exception)
+        {
+          LogMessage($"Error migrating table {targetTable.TableName}: {exception.Message}");
+          MessageBox.Show($"Error migrating table {targetTable.TableName}: {exception.Message}", "Migration Error", MessageBoxButton.OK, MessageBoxImage.Error);
+          return;
+        }
+      }
+
+      MessageBox.Show("Migration completed successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private NpgsqlDbType GetNpgsqlType(Type type)
+    {
+      if (type == typeof(int) || type == typeof(Int32))
+        return NpgsqlDbType.Integer;
+
+      if (type == typeof(long) || type == typeof(Int64))
+        return NpgsqlDbType.Bigint;
+
+      if (type == typeof(string) || type == typeof(char))
+        return NpgsqlDbType.Text;
+
+      if (type == typeof(DateTime))
+        return NpgsqlDbType.Timestamp;
+
+      if (type == typeof(bool))
+        return NpgsqlDbType.Boolean;
+
+      if (type == typeof(byte[]))
+        return NpgsqlDbType.Bytea;
+
+      if (type == typeof(float) || type == typeof(Single))
+        return NpgsqlDbType.Real;
+
+      if (type == typeof(double))
+        return NpgsqlDbType.Double;
+
+      if (type == typeof(decimal))
+        return NpgsqlDbType.Numeric;
+
+      if (type == typeof(short) || type == typeof(Int16))
+        return NpgsqlDbType.Smallint;
+
+      if (type == typeof(byte))
+        return NpgsqlDbType.Smallint;
+
+      if (type == typeof(Guid))
+        return NpgsqlDbType.Uuid;
+
+      if (type == typeof(TimeSpan))
+        return NpgsqlDbType.Interval;
+
+      if (type == typeof(DateTimeOffset))
+        return NpgsqlDbType.TimestampTz;
+
+      // Pour déboguer, affichons le type non supporté
+      LogMessage($"Type non supporté détecté : {type.FullName}");
+      throw new ArgumentException($"Type non supporté : {type.FullName}", nameof(type));
+    }
+
     private static string Plural(int count)
     {
       return count > 1 ? "s" : "";
@@ -863,272 +1144,6 @@ namespace DatabaseMigrator
     private string ChangeProfileNameToProfileFilenameForPostgresql(string profileName)
     {
       return _pgCredentialsFileTemplate.Replace("{profilName}", profileName);
-    }
-
-    private void BtnMigrateTables_Click(object sender, RoutedEventArgs e)
-    {
-      var selectedOracleTables = lstOracleTables.ItemsSource.Cast<TableInfo>().Where(t => t.IsSelected).ToList();
-      var allPostgresTables = lstPostgresTables.ItemsSource.Cast<TableInfo>().ToList();
-      if (selectedOracleTables.Count == 0)
-      {
-        MessageBox.Show("Please select at least one table from the source database to migrate.", "No tables selected", MessageBoxButton.OK, MessageBoxImage.Hand);
-        return;
-      }
-
-      // Make sure the target table has not the same number of records as the source table
-      foreach (var table in selectedOracleTables)
-      {
-        if (table.RowCount == 0)
-        {
-          MessageBox.Show($"There is not record in {table.TableName} table to copy in the source database to migrate.", "No record to copy", MessageBoxButton.OK, MessageBoxImage.Hand);
-          return;
-        }
-
-        var targetTable = allPostgresTables.FirstOrDefault(t => t.TableName.Equals(table.TableName, StringComparison.OrdinalIgnoreCase));
-        if (table.RowCount == targetTable.RowCount)
-        {
-          MessageBox.Show($"The number of record for the source table is equal to the target table.", "Similar table records", MessageBoxButton.OK, MessageBoxImage.Hand);
-          return;
-        }
-
-        if (targetTable.RowCount > 0)
-        {
-          MessageBox.Show($"The target table {targetTable.TableName} is not empty, it will be emptied before migrating the data.", "Target table not empty", MessageBoxButton.OK, MessageBoxImage.Hand);
-        }
-
-        // log table name
-        LogMessage($"Migrating table {table.TableName} from Oracle to PostgreSQL...");
-
-        try
-        {
-          using (var oracleConnection = new OracleConnection(GetOracleConnectionString()))
-          using (var postgresConnection = new NpgsqlConnection(GetPostgresConnectionString()))
-          {
-            oracleConnection.Open();
-            postgresConnection.Open();
-
-            // Truncate target table and drop foreign key constraints
-            using (var cmd = new NpgsqlCommand())
-            {
-              cmd.Connection = postgresConnection;
-              var schemaTable = $"{txtPostgresSchema.Text}.{targetTable.TableName}";
-
-              // Get all foreign key constraints for this table
-              cmd.CommandText = @"
-                SELECT 
-                    tc.constraint_name,
-                    ccu.table_schema as foreign_table_schema,
-                    ccu.table_name as foreign_table_name
-                FROM information_schema.table_constraints tc
-                JOIN information_schema.constraint_column_usage ccu 
-                    ON tc.constraint_name = ccu.constraint_name
-                WHERE tc.constraint_type = 'FOREIGN KEY'
-                AND tc.table_schema = @schema
-                AND tc.table_name = @tablename";
-              cmd.Parameters.AddWithValue("schema", txtPostgresSchema.Text);
-              cmd.Parameters.AddWithValue("tablename", targetTable.TableName);
-              
-              var constraints = new List<(string name, string schema, string table)>();
-              using (var reader = cmd.ExecuteReader())
-              {
-                while (reader.Read())
-                {
-                  constraints.Add((
-                    reader.GetString(0),
-                    reader.GetString(1),
-                    reader.GetString(2)
-                  ));
-                }
-              }
-              cmd.Parameters.Clear();
-
-              // Drop each foreign key constraint
-              foreach (var constraint in constraints)
-              {
-                cmd.CommandText = $"ALTER TABLE {schemaTable} DROP CONSTRAINT {constraint.name}";
-                cmd.ExecuteNonQuery();
-              }
-              LogMessage($"Dropped {constraints.Count} foreign key constraints for table {schemaTable}");
-              
-              // Disable user triggers
-              cmd.CommandText = $"ALTER TABLE {schemaTable} DISABLE TRIGGER USER";
-              cmd.ExecuteNonQuery();
-              LogMessage($"Disabled user triggers for table {schemaTable}");
-              
-              // Truncate the table
-              cmd.CommandText = $"TRUNCATE TABLE {schemaTable} RESTART IDENTITY CASCADE";
-              cmd.ExecuteNonQuery();
-              LogMessage($"Table {schemaTable} truncated successfully");
-
-              try
-              {
-                // Get data from Oracle
-                var selectCommand = $"SELECT * FROM {table.TableName}";
-                using (var oracleCmd = new OracleCommand(selectCommand, oracleConnection))
-                using (var reader = oracleCmd.ExecuteReader())
-                {
-                  // Get column names and types
-                  var schemaInfo = reader.GetSchemaTable();
-                  var columns = new List<string>();
-                  var columnTypes = new List<Type>();
-                  foreach (DataRow row in schemaInfo.Rows)
-                  {
-                    columns.Add(row["ColumnName"].ToString());
-                    columnTypes.Add((Type)row["DataType"]);
-                  }
-
-                  // Prepare insert statement
-                  var columnList = string.Join(",", columns);
-                  var paramList = string.Join(",", columns.Select(c => $"@{c}"));
-                  var insertCommand = $"INSERT INTO {schemaTable} ({columnList}) VALUES ({paramList})";
-
-                  // Batch insert data
-                  using (var transaction = postgresConnection.BeginTransaction())
-                  {
-                    try
-                    {
-                      using (var insertCmd = new NpgsqlCommand(insertCommand, postgresConnection, transaction))
-                      {
-                        // Add parameters with correct types
-                        for (int i = 0; i < columns.Count; i++)
-                        {
-                          var npgsqlType = GetNpgsqlType(columnTypes[i]);
-                          insertCmd.Parameters.Add(new NpgsqlParameter($"@{columns[i]}", npgsqlType));
-                        }
-
-                        int rowCount = 0;
-                        while (reader.Read())
-                        {
-                          for (int i = 0; i < columns.Count; i++)
-                          {
-                            var value = reader.IsDBNull(i) ? DBNull.Value : reader.GetValue(i);
-                            insertCmd.Parameters[i].Value = value;
-                          }
-
-                          insertCmd.ExecuteNonQuery();
-                          rowCount++;
-
-                          if (rowCount % 1000 == 0)
-                          {
-                            LogMessage($"Inserted {rowCount} rows into {schemaTable}");
-                          }
-                        }
-
-                        transaction.Commit();
-                        LogMessage($"Successfully migrated {rowCount} rows from {table.TableName} to PostgreSQL");
-                      }
-                    }
-                    catch (Exception exception)
-                    {
-                      transaction.Rollback();
-                      throw new Exception($"Error while inserting data into {schemaTable}: {exception.Message}");
-                    }
-                  }
-                }
-              }
-              finally
-              {
-                // Re-enable user triggers
-                cmd.CommandText = $"ALTER TABLE {schemaTable} ENABLE TRIGGER USER";
-                cmd.ExecuteNonQuery();
-                
-                // Recreate each foreign key constraint
-                foreach (var constraint in constraints)
-                {
-                  try
-                  {
-                    // Get the constraint definition
-                    cmd.CommandText = $@"
-                      SELECT pg_get_constraintdef(oid) 
-                      FROM pg_constraint 
-                      WHERE conname = @constraintname";
-                    cmd.Parameters.AddWithValue("constraintname", constraint.name);
-                    string constraintDef = "";
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                      if (reader.Read())
-                      {
-                        constraintDef = reader.GetString(0);
-                      }
-                    }
-                    cmd.Parameters.Clear();
-
-                    if (!string.IsNullOrEmpty(constraintDef))
-                    {
-                      // Recreate the constraint
-                      cmd.CommandText = $"ALTER TABLE {schemaTable} ADD CONSTRAINT {constraint.name} {constraintDef}";
-                      cmd.ExecuteNonQuery();
-                      LogMessage($"Recreated constraint {constraint.name}");
-                    }
-                  }
-                  catch (Exception ex)
-                  {
-                    LogMessage($"Warning: Could not recreate constraint {constraint.name}: {ex.Message}");
-                  }
-                }
-                LogMessage($"Finished recreating constraints for table {schemaTable}");
-              }
-            }
-          }
-        }
-        catch (Exception exception)
-        {
-          LogMessage($"Error migrating table {table.TableName}: {exception.Message}");
-          MessageBox.Show($"Error migrating table {table.TableName}: {exception.Message}", "Migration Error", MessageBoxButton.OK, MessageBoxImage.Error);
-          return;
-        }
-      }
-
-      MessageBox.Show("Migration completed successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-    }
-
-    private NpgsqlDbType GetNpgsqlType(Type type)
-    {
-      if (type == typeof(int) || type == typeof(Int32))
-        return NpgsqlDbType.Integer;
-
-      if (type == typeof(long) || type == typeof(Int64))
-        return NpgsqlDbType.Bigint;
-
-      if (type == typeof(string) || type == typeof(char))
-        return NpgsqlDbType.Text;
-
-      if (type == typeof(DateTime))
-        return NpgsqlDbType.Timestamp;
-
-      if (type == typeof(bool))
-        return NpgsqlDbType.Boolean;
-
-      if (type == typeof(byte[]))
-        return NpgsqlDbType.Bytea;
-
-      if (type == typeof(float) || type == typeof(Single))
-        return NpgsqlDbType.Real;
-
-      if (type == typeof(double))
-        return NpgsqlDbType.Double;
-
-      if (type == typeof(decimal))
-        return NpgsqlDbType.Numeric;
-
-      if (type == typeof(short) || type == typeof(Int16))
-        return NpgsqlDbType.Smallint;
-
-      if (type == typeof(byte))
-        return NpgsqlDbType.Smallint;
-
-      if (type == typeof(Guid))
-        return NpgsqlDbType.Uuid;
-
-      if (type == typeof(TimeSpan))
-        return NpgsqlDbType.Interval;
-
-      if (type == typeof(DateTimeOffset))
-        return NpgsqlDbType.TimestampTz;
-
-      // Pour déboguer, affichons le type non supporté
-      LogMessage($"Type non supporté détecté : {type.FullName}");
-      throw new ArgumentException($"Type non supporté : {type.FullName}", nameof(type));
     }
   }
 }

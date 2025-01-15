@@ -4,10 +4,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Loading" 
         Height="150" 
-        Width="300"
+        Width="400"
         WindowStyle="None"
         AllowsTransparency="True"
-        Background="Transparent">
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True">
     
     <Border Background="#F0F0F0"
             CornerRadius="10"
@@ -21,6 +24,10 @@
                        FontSize="16" 
                        HorizontalAlignment="Center"
                        Margin="0,0,0,10"/>
+            <Label x:Name="lblStatus"
+                   Content="Preparing..."
+                   HorizontalAlignment="Center"
+                   Margin="0,0,0,10"/>
             <ProgressBar IsIndeterminate="True" 
                          Height="2" 
                          Width="200"/>
