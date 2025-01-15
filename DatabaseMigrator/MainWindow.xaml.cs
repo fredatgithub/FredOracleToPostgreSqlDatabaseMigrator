@@ -701,25 +701,26 @@ namespace DatabaseMigrator
 
         try
         {
-          await Task.Run(() =>
+          foreach (var table in selectedOracleTables)
           {
-            foreach (var table in selectedOracleTables)
+            try
             {
-              try
-              {
-                Dispatcher.Invoke(() => loadingWindow.lblStatus.Content = $"Migrating table {table.TableName}...");
-                MigrateTable(table);
-                LogMessage($"Successfully migrated table {table.TableName}");
-              }
-              catch (Exception ex)
-              {
-                LogMessage($"Error migrating table {table.TableName}: {ex.Message}");
-                MessageBox.Show($"Error migrating table {table.TableName}: {ex.Message}", "Migration Error", MessageBoxButton.OK, MessageBoxImage.Error);
-              }
+              loadingWindow.lblStatus.Content = $"Migrating table {table.TableName}...";
+              await Task.Run(() => MigrateTable(table));
+              LogMessage($"Successfully migrated table {table.TableName}");
             }
-          });
+            catch (Exception ex)
+            {
+              LogMessage($"Error migrating table {table.TableName}: {ex.Message}");
+              await Dispatcher.InvokeAsync(() =>
+                MessageBox.Show($"Error migrating table {table.TableName}: {ex.Message}", 
+                  "Migration Error", MessageBoxButton.OK, MessageBoxImage.Error));
+            }
+          }
 
-          MessageBox.Show("Migration completed. Check the log for details.", "Migration Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+          await Dispatcher.InvokeAsync(() =>
+            MessageBox.Show("Migration completed. Check the log for details.", 
+              "Migration Complete", MessageBoxButton.OK, MessageBoxImage.Information));
         }
         finally
         {
@@ -747,7 +748,12 @@ namespace DatabaseMigrator
           using (var cmd = new NpgsqlCommand())
           {
             cmd.Connection = postgresConnection;
-            var schemaTable = $"{txtPostgresSchema.Text}.{targetTable.TableName}";
+            string schemaTable = "";
+            
+            // Récupérer les valeurs UI de manière thread-safe
+            Application.Current.Dispatcher.Invoke(() => {
+              schemaTable = $"{txtPostgresSchema.Text}.{targetTable.TableName}";
+            });
 
             // Get all foreign key constraints for this table
             cmd.CommandText = @"
@@ -761,9 +767,15 @@ namespace DatabaseMigrator
               WHERE tc.constraint_type = 'FOREIGN KEY'
               AND tc.table_schema = @schema
               AND tc.table_name = @tablename";
-            cmd.Parameters.AddWithValue("schema", txtPostgresSchema.Text);
-            cmd.Parameters.AddWithValue("tablename", targetTable.TableName);
 
+            string schema = "";
+            Application.Current.Dispatcher.Invoke(() => {
+              schema = txtPostgresSchema.Text;
+            });
+            
+            cmd.Parameters.AddWithValue("schema", schema);
+            cmd.Parameters.AddWithValue("tablename", targetTable.TableName);
+            
             var constraints = new List<(string name, string schema, string table)>();
             using (var reader = cmd.ExecuteReader())
             {
@@ -784,17 +796,23 @@ namespace DatabaseMigrator
               cmd.CommandText = $"ALTER TABLE {schemaTable} DROP CONSTRAINT {constraint.name}";
               cmd.ExecuteNonQuery();
             }
-            LogMessage($"Dropped {constraints.Count} foreign key constraints for table {schemaTable}");
-
+            Application.Current.Dispatcher.Invoke(() => {
+              LogMessage($"Dropped {constraints.Count} foreign key constraints for table {schemaTable}");
+            });
+            
             // Disable user triggers
             cmd.CommandText = $"ALTER TABLE {schemaTable} DISABLE TRIGGER USER";
             cmd.ExecuteNonQuery();
-            LogMessage($"Disabled user triggers for table {schemaTable}");
-
+            Application.Current.Dispatcher.Invoke(() => {
+              LogMessage($"Disabled user triggers for table {schemaTable}");
+            });
+            
             // Truncate the table
             cmd.CommandText = $"TRUNCATE TABLE {schemaTable} RESTART IDENTITY CASCADE";
             cmd.ExecuteNonQuery();
-            LogMessage($"Table {schemaTable} truncated successfully");
+            Application.Current.Dispatcher.Invoke(() => {
+              LogMessage($"Table {schemaTable} truncated successfully");
+            });
 
             try
             {
@@ -846,12 +864,16 @@ namespace DatabaseMigrator
 
                         if (rowCount % 1000 == 0)
                         {
-                          LogMessage($"Inserted {rowCount} rows into {schemaTable}");
+                          Application.Current.Dispatcher.Invoke(() => {
+                            LogMessage($"Inserted {rowCount} rows into {schemaTable}");
+                          });
                         }
                       }
 
                       transaction.Commit();
-                      LogMessage($"Successfully migrated {rowCount} rows from {targetTable.TableName} to PostgreSQL");
+                      Application.Current.Dispatcher.Invoke(() => {
+                        LogMessage($"Successfully migrated {rowCount} rows from {targetTable.TableName} to PostgreSQL");
+                      });
                     }
                   }
                   catch (Exception exception)
@@ -894,21 +916,29 @@ namespace DatabaseMigrator
                     // Recreate the constraint
                     cmd.CommandText = $"ALTER TABLE {schemaTable} ADD CONSTRAINT {constraint.name} {constraintDef}";
                     cmd.ExecuteNonQuery();
-                    LogMessage($"Recreated constraint {constraint.name}");
+                    Application.Current.Dispatcher.Invoke(() => {
+                      LogMessage($"Recreated constraint {constraint.name}");
+                    });
                   }
                 }
                 catch (Exception ex)
                 {
-                  LogMessage($"Warning: Could not recreate constraint {constraint.name}: {ex.Message}");
+                  Application.Current.Dispatcher.Invoke(() => {
+                    LogMessage($"Warning: Could not recreate constraint {constraint.name}: {ex.Message}");
+                  });
                 }
               }
-              LogMessage($"Finished recreating constraints for table {schemaTable}");
+              Application.Current.Dispatcher.Invoke(() => {
+                LogMessage($"Finished recreating constraints for table {schemaTable}");
+              });
             }
           }
         }
         catch (Exception exception)
         {
-          LogMessage($"Error migrating table {targetTable.TableName}: {exception.Message}");
+          Application.Current.Dispatcher.Invoke(() => {
+            LogMessage($"Error migrating table {targetTable.TableName}: {exception.Message}");
+          });
           MessageBox.Show($"Error migrating table {targetTable.TableName}: {exception.Message}", "Migration Error", MessageBoxButton.OK, MessageBoxImage.Error);
           return;
         }
@@ -962,7 +992,9 @@ namespace DatabaseMigrator
         return NpgsqlDbType.TimestampTz;
 
       // Pour déboguer, affichons le type non supporté
-      LogMessage($"Type non supporté détecté : {type.FullName}");
+      Application.Current.Dispatcher.Invoke(() => {
+        LogMessage($"Type non supporté détecté : {type.FullName}");
+      });
       throw new ArgumentException($"Type non supporté : {type.FullName}", nameof(type));
     }
 
@@ -1020,7 +1052,10 @@ namespace DatabaseMigrator
         btnLoadOracleStoredProcs.IsEnabled = false;
         Mouse.OverrideCursor = Cursors.Wait;
 
-        var procedures = await Task.Run(() => _oracleService.GetStoredProcedures());
+        var procedures = await Task.Run(() =>
+        {
+          return _oracleService.GetStoredProcedures();
+        });
 
         lstOracleStoredProcs.ItemsSource = procedures.Select(p => new StoredProcedureItem
         {
@@ -1051,7 +1086,10 @@ namespace DatabaseMigrator
         btnLoadPostgresStoredProcs.IsEnabled = false;
         Mouse.OverrideCursor = Cursors.Wait;
 
-        var procedures = await Task.Run(() => _postgresService.GetStoredProcedures());
+        var procedures = await Task.Run(() =>
+        {
+          return _postgresService.GetStoredProcedures();
+        });
 
         lstPostgresStoredProcs.ItemsSource = procedures.Select(p => new StoredProcedureItem
         {
