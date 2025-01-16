@@ -131,7 +131,9 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Helpers\DatabaseHelper.cs" />
     <Compile Include="Helpers\EncryptionHelper.cs" />
+    <Compile Include="Helpers\StringHelper.cs" />
     <Compile Include="MigrationWindow.cs" />
     <Compile Include="Models\DbCredentials.cs" />
     <Compile Include="Models\IOracleService.cs" />

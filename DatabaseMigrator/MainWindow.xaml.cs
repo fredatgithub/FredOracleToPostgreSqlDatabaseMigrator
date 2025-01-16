@@ -31,6 +31,8 @@ namespace DatabaseMigrator
     private readonly string _logFile = "log.txt";
     private readonly IOracleService _oracleService;
     private readonly IPostgresService _postgresService;
+    private const float DefaultWindowTop = 0.00f;
+    private const float DefaultWindowLeft = 0.00f;
 
     public MainWindow()
     {
@@ -168,7 +170,6 @@ namespace DatabaseMigrator
     private static List<string> GetProfilFile(string pattern)
     {
       var result = GetAllFiles(pattern);
-      //var array = GetProfilNameFromFilename(result);
       return result;
     }
 
@@ -235,8 +236,7 @@ namespace DatabaseMigrator
       {
         var view = CollectionViewSource.GetDefaultView(items);
         var searchText = txtOracleSearch.Text.ToUpperInvariant();
-        view.Filter = item => string.IsNullOrEmpty(searchText) ||
-                             (item as TableInfo)?.TableName.ToUpperInvariant().Contains(searchText) == true;
+        view.Filter = item => string.IsNullOrEmpty(searchText) || (item as TableInfo)?.TableName.ToUpperInvariant().Contains(searchText) == true;
       }
     }
 
@@ -250,7 +250,9 @@ namespace DatabaseMigrator
       }
     }
 
+#pragma warning disable EC84 // Avoid async void methods
     private async void BtnLoadOracleTables_Click(object sender, RoutedEventArgs e)
+#pragma warning restore EC84 // Avoid async void methods
     {
       try
       {
@@ -305,7 +307,9 @@ namespace DatabaseMigrator
       }
     }
 
+#pragma warning disable EC84 // Avoid async void methods
     private async void BtnLoadPostgresTables_Click(object sender, RoutedEventArgs e)
+#pragma warning restore EC84 // Avoid async void methods
     {
       try
       {
@@ -549,7 +553,9 @@ namespace DatabaseMigrator
       button.Background = new SolidColorBrush(Color.FromRgb(220, 53, 69));
     }
 
+#pragma warning disable EC84 // Avoid async void methods
     private async void BtnTestOracle_Click(object sender, RoutedEventArgs e)
+#pragma warning restore EC84 // Avoid async void methods
     {
       try
       {
@@ -575,7 +581,9 @@ namespace DatabaseMigrator
       }
     }
 
+#pragma warning disable EC84 // Avoid async void methods
     private async void BtnTestPostgres_Click(object sender, RoutedEventArgs e)
+#pragma warning restore EC84 // Avoid async void methods
     {
       try
       {
@@ -645,10 +653,10 @@ namespace DatabaseMigrator
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
       // Restore window position and size
-      var settings = Properties.Settings.Default;
+      var settings = Settings.Default;
 
       // If it's the first time the application is launched, center the window
-      if (settings.WindowTop == 0 && settings.WindowLeft == 0)
+      if (settings.WindowTop == DefaultWindowTop && settings.WindowLeft == DefaultWindowLeft)
       {
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
       }
@@ -716,7 +724,9 @@ namespace DatabaseMigrator
       SaveLogs();
     }
 
+#pragma warning disable EC84 // Avoid async void methods
     private async void BtnMigrateTables_Click(object sender, RoutedEventArgs e)
+#pragma warning restore EC84 // Avoid async void methods
     {
       try
       {
@@ -727,7 +737,7 @@ namespace DatabaseMigrator
           return;
         }
 
-        var loadingWindow = new LoadingWindow(this) { Title = "Migrating Data..." };
+        var loadingWindow = new LoadingWindow(this) { Title = "Copying Data ..." };
         loadingWindow.Show();
 
         try
@@ -736,37 +746,38 @@ namespace DatabaseMigrator
           {
             try
             {
-              loadingWindow.lblStatus.Content = $"Migrating table {table.TableName}...";
+              loadingWindow.lblStatus.Content = $"Copying table {table.TableName}...";
               await Task.Run(() => MigrateTable(table));
-              LogMessage($"Successfully migrated table {table.TableName}");
+              LogMessage($"Successfully copied table {table.TableName}");
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-              LogMessage($"Error migrating table {table.TableName}: {ex.Message}");
+              LogMessage($"Error copying table {table.TableName}: {exception.Message}");
               await Dispatcher.InvokeAsync(() =>
-                MessageBox.Show($"Error migrating table {table.TableName}: {ex.Message}", 
-                  "Migration Error", MessageBoxButton.OK, MessageBoxImage.Error));
+                MessageBox.Show($"Error copying table {table.TableName}: {exception.Message}",
+                  "Copy Error", MessageBoxButton.OK, MessageBoxImage.Error));
             }
           }
 
           await Dispatcher.InvokeAsync(() =>
-            MessageBox.Show("Migration completed. Check the log for details.", 
-              "Migration Complete", MessageBoxButton.OK, MessageBoxImage.Information));
+            MessageBox.Show("Copy completed. Check the log for details.",
+              "Copy Complete", MessageBoxButton.OK, MessageBoxImage.Information));
         }
         finally
         {
           loadingWindow.Close();
         }
       }
-      catch (Exception ex)
+      catch (Exception exception)
       {
-        LogMessage($"Migration error: {ex.Message}");
-        MessageBox.Show($"Migration error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        LogMessage($"Copy error: {exception.Message}");
+        MessageBox.Show($"Copy error: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
       }
     }
 
     private void MigrateTable(TableInfo targetTable)
     {
+      LoadingWindow loadingWindow = null;
       using (var oracleConnection = new OracleConnection(GetOracleConnectionString()))
       using (var postgresConnection = new NpgsqlConnection(GetPostgresConnectionString()))
       {
@@ -779,10 +790,11 @@ namespace DatabaseMigrator
           using (var cmd = new NpgsqlCommand())
           {
             cmd.Connection = postgresConnection;
-            string schemaTable = "";
-            
+            string schemaTable = string.Empty;
+
             // Récupérer les valeurs UI de manière thread-safe
-            Application.Current.Dispatcher.Invoke(() => {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
               schemaTable = $"{txtPostgresSchema.Text}.{targetTable.TableName}";
             });
 
@@ -799,14 +811,15 @@ namespace DatabaseMigrator
               AND tc.table_schema = @schema
               AND tc.table_name = @tablename";
 
-            string schema = "";
-            Application.Current.Dispatcher.Invoke(() => {
+            string schema = string.Empty;
+            Application.Current.Dispatcher.Invoke(() =>
+            {
               schema = txtPostgresSchema.Text;
             });
-            
+
             cmd.Parameters.AddWithValue("schema", schema);
             cmd.Parameters.AddWithValue("tablename", targetTable.TableName);
-            
+
             var constraints = new List<(string name, string schema, string table)>();
             using (var reader = cmd.ExecuteReader())
             {
@@ -825,23 +838,29 @@ namespace DatabaseMigrator
             foreach (var constraint in constraints)
             {
               cmd.CommandText = $"ALTER TABLE {schemaTable} DROP CONSTRAINT {constraint.name}";
+#pragma warning disable EC72 // Don't execute SQL commands in loops
               cmd.ExecuteNonQuery();
+#pragma warning restore EC72 // Don't execute SQL commands in loops
             }
-            Application.Current.Dispatcher.Invoke(() => {
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
               LogMessage($"Dropped {constraints.Count} foreign key constraints for table {schemaTable}");
             });
-            
+
             // Disable user triggers
             cmd.CommandText = $"ALTER TABLE {schemaTable} DISABLE TRIGGER USER";
             cmd.ExecuteNonQuery();
-            Application.Current.Dispatcher.Invoke(() => {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
               LogMessage($"Disabled user triggers for table {schemaTable}");
             });
-            
+
             // Truncate the table
             cmd.CommandText = $"TRUNCATE TABLE {schemaTable} RESTART IDENTITY CASCADE";
             cmd.ExecuteNonQuery();
-            Application.Current.Dispatcher.Invoke(() => {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
               LogMessage($"Table {schemaTable} truncated successfully");
             });
 
@@ -872,6 +891,8 @@ namespace DatabaseMigrator
                 {
                   try
                   {
+                    loadingWindow = new LoadingWindow(this) { Title = "Copying Data ..." };
+                    loadingWindow.Show();
                     using (var insertCmd = new NpgsqlCommand(insertCommand, postgresConnection, transaction))
                     {
                       // Add parameters with correct types
@@ -890,19 +911,23 @@ namespace DatabaseMigrator
                           insertCmd.Parameters[i].Value = value;
                         }
 
+#pragma warning disable EC72 // Don't execute SQL commands in loops
                         insertCmd.ExecuteNonQuery();
+#pragma warning restore EC72 // Don't execute SQL commands in loops
                         rowCount++;
 
                         if (rowCount % 1000 == 0)
                         {
-                          Application.Current.Dispatcher.Invoke(() => {
+                          Application.Current.Dispatcher.Invoke(() =>
+                          {
                             LogMessage($"Inserted {rowCount} rows into {schemaTable}");
                           });
                         }
                       }
 
                       transaction.Commit();
-                      Application.Current.Dispatcher.Invoke(() => {
+                      Application.Current.Dispatcher.Invoke(() =>
+                      {
                         LogMessage($"Successfully migrated {rowCount} rows from {targetTable.TableName} to PostgreSQL");
                       });
                     }
@@ -910,6 +935,7 @@ namespace DatabaseMigrator
                   catch (Exception exception)
                   {
                     transaction.Rollback();
+                    loadingWindow?.Close();
                     throw new Exception($"Error while inserting data into {schemaTable}: {exception.Message}");
                   }
                 }
@@ -933,6 +959,7 @@ namespace DatabaseMigrator
                     WHERE conname = @constraintname";
                   cmd.Parameters.AddWithValue("constraintname", constraint.name);
                   string constraintDef = "";
+#pragma warning disable EC72 // Don't execute SQL commands in loops
                   using (var reader = cmd.ExecuteReader())
                   {
                     if (reader.Read())
@@ -940,98 +967,70 @@ namespace DatabaseMigrator
                       constraintDef = reader.GetString(0);
                     }
                   }
+#pragma warning restore EC72 // Don't execute SQL commands in loops
                   cmd.Parameters.Clear();
 
                   if (!string.IsNullOrEmpty(constraintDef))
                   {
                     // Recreate the constraint
                     cmd.CommandText = $"ALTER TABLE {schemaTable} ADD CONSTRAINT {constraint.name} {constraintDef}";
+#pragma warning disable EC72 // Don't execute SQL commands in loops
                     cmd.ExecuteNonQuery();
-                    Application.Current.Dispatcher.Invoke(() => {
+#pragma warning restore EC72 // Don't execute SQL commands in loops
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
                       LogMessage($"Recreated constraint {constraint.name}");
                     });
                   }
                 }
-                catch (Exception ex)
+                catch (Exception exception)
                 {
-                  Application.Current.Dispatcher.Invoke(() => {
-                    LogMessage($"Warning: Could not recreate constraint {constraint.name}: {ex.Message}");
+                  Application.Current.Dispatcher.Invoke(() =>
+                  {
+                    LogMessage($"Warning: Could not recreate constraint {constraint.name}: {exception.Message}");
                   });
+                  loadingWindow?.Close();
                 }
               }
-              Application.Current.Dispatcher.Invoke(() => {
+
+              Application.Current.Dispatcher.Invoke(() =>
+              {
                 LogMessage($"Finished recreating constraints for table {schemaTable}");
               });
+              loadingWindow?.Close();
             }
           }
         }
         catch (Exception exception)
         {
-          Application.Current.Dispatcher.Invoke(() => {
+          Application.Current.Dispatcher.Invoke(() =>
+          {
             LogMessage($"Error migrating table {targetTable.TableName}: {exception.Message}");
           });
+          loadingWindow?.Close();
           MessageBox.Show($"Error migrating table {targetTable.TableName}: {exception.Message}", "Migration Error", MessageBoxButton.OK, MessageBoxImage.Error);
           return;
         }
       }
 
+      loadingWindow?.Close();
       MessageBox.Show("Migration completed successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private NpgsqlDbType GetNpgsqlType(Type type)
     {
-      if (type == typeof(int) || type == typeof(Int32))
-        return NpgsqlDbType.Integer;
+      if (DatabaseHelper.GetNpgsqlType(type) == NpgsqlDbType.Unknown)
+      {
+        // To debug, let's display the not supported type
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+          LogMessage($"not supported type detected: {type.FullName}");
+        });
 
-      if (type == typeof(long) || type == typeof(Int64))
-        return NpgsqlDbType.Bigint;
+        throw new ArgumentException($"Not supported type: {type.FullName}", nameof(type));
+      }
 
-      if (type == typeof(string) || type == typeof(char))
-        return NpgsqlDbType.Text;
-
-      if (type == typeof(DateTime))
-        return NpgsqlDbType.Timestamp;
-
-      if (type == typeof(bool))
-        return NpgsqlDbType.Boolean;
-
-      if (type == typeof(byte[]))
-        return NpgsqlDbType.Bytea;
-
-      if (type == typeof(float) || type == typeof(Single))
-        return NpgsqlDbType.Real;
-
-      if (type == typeof(double))
-        return NpgsqlDbType.Double;
-
-      if (type == typeof(decimal))
-        return NpgsqlDbType.Numeric;
-
-      if (type == typeof(short) || type == typeof(Int16))
-        return NpgsqlDbType.Smallint;
-
-      if (type == typeof(byte))
-        return NpgsqlDbType.Smallint;
-
-      if (type == typeof(Guid))
-        return NpgsqlDbType.Uuid;
-
-      if (type == typeof(TimeSpan))
-        return NpgsqlDbType.Interval;
-
-      if (type == typeof(DateTimeOffset))
-        return NpgsqlDbType.TimestampTz;
-
-      // Pour déboguer, affichons le type non supporté
-      Application.Current.Dispatcher.Invoke(() => {
-        LogMessage($"Type non supporté détecté : {type.FullName}");
-      });
-      throw new ArgumentException($"Type non supporté : {type.FullName}", nameof(type));
-    }
-
-    private static string Plural(int count)
-    {
-      return count > 1 ? "s" : "";
+      return DatabaseHelper.GetNpgsqlType(type);
     }
 
     public void UpdateOracleSelectedCount()
@@ -1040,7 +1039,7 @@ namespace DatabaseMigrator
       {
         var selectedCount = tables.Count(t => t.IsSelected);
         txtOracleSelectedCount.Text = selectedCount.ToString();
-        txtOracleTableLabel.Text = $" table{Plural(selectedCount)}";
+        txtOracleTableLabel.Text = $" table{StringHelper.Plural(selectedCount)}";
       }
     }
 
@@ -1050,7 +1049,7 @@ namespace DatabaseMigrator
       {
         var selectedCount = tables.Count(t => t.IsSelected);
         txtPostgresSelectedCount.Text = selectedCount.ToString();
-        txtPostgresTableLabel.Text = $" table{Plural(selectedCount)}";
+        txtPostgresTableLabel.Text = $" table{StringHelper.Plural(selectedCount)}";
       }
     }
 
@@ -1060,7 +1059,7 @@ namespace DatabaseMigrator
       {
         var selectedCount = procedures.Count(p => p.IsSelected);
         txtOracleSelectedProcsCount.Text = selectedCount.ToString();
-        txtOracleProcsLabel.Text = $" stored procedure{Plural(selectedCount)}";
+        txtOracleProcsLabel.Text = $" stored procedure{StringHelper.Plural(selectedCount)}";
       }
     }
 
@@ -1070,7 +1069,7 @@ namespace DatabaseMigrator
       {
         var selectedCount = procedures.Count(p => p.IsSelected);
         txtPostgresSelectedProcsCount.Text = selectedCount.ToString();
-        txtPostgresProcsLabel.Text = $" stored procedure{Plural(selectedCount)}";
+        txtPostgresProcsLabel.Text = $" stored procedure{StringHelper.Plural(selectedCount)}";
       }
     }
 
