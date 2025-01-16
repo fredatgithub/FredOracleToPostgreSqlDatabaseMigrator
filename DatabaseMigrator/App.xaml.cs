@@ -2,7 +2,7 @@ using System.Windows;
 
 namespace DatabaseMigrator
 {
-  public partial class App : Application
-  {
-  }
+    public partial class App : Application
+    {
+    }
 }
