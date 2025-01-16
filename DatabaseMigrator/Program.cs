@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using System.Windows.Threading;
 
 namespace DatabaseMigrator
 {
@@ -9,6 +11,7 @@ namespace DatabaseMigrator
         {
             var app = new App();
             app.InitializeComponent();
+            app.Dispatcher.Thread.SetApartmentState(ApartmentState.STA);
             app.Run();
         }
     }
