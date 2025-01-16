@@ -135,6 +135,7 @@
     <Compile Include="Helpers\EncryptionHelper.cs" />
     <Compile Include="Helpers\StringHelper.cs" />
     <Compile Include="MigrationWindow.cs" />
+    <Compile Include="Models\ColumnInfo.cs" />
     <Compile Include="Models\DbCredentials.cs" />
     <Compile Include="Models\IOracleService.cs" />
     <Compile Include="Models\IPostgresService.cs" />

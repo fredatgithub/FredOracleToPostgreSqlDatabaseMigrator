@@ -1,5 +1,5 @@
-using DatabaseMigrator.Helpers;
 using DatabaseMigrator.Models;
+using DatabaseMigrator.Helpers;
 using DatabaseMigrator.Properties;
 using DatabaseMigrator.Views;
 using Newtonsoft.Json;
@@ -728,309 +728,389 @@ namespace DatabaseMigrator
     private async void BtnMigrateTables_Click(object sender, RoutedEventArgs e)
 #pragma warning restore EC84 // Avoid async void methods
     {
-      try
-      {
-        var selectedOracleTables = lstOracleTables.ItemsSource.Cast<TableInfo>().Where(t => t.IsSelected).ToList();
-        if (selectedOracleTables.Count == 0)
-        {
-          MessageBox.Show("Please select at least one table from the source database to migrate.", "No tables selected", MessageBoxButton.OK, MessageBoxImage.Hand);
-          return;
-        }
-
-        var loadingWindow = new LoadingWindow(this) { Title = "Copying Data ..." };
-        loadingWindow.Show();
-
         try
         {
-          foreach (var table in selectedOracleTables)
-          {
+            List<TableInfo> selectedOracleTables = null;
+            await Dispatcher.InvokeAsync(() =>
+            {
+                selectedOracleTables = lstOracleTables.ItemsSource.Cast<TableInfo>().Where(t => t.IsSelected).ToList();
+            });
+
+            if (selectedOracleTables.Count == 0)
+            {
+                MessageBox.Show("Please select at least one table from the source database to migrate.", "No tables selected", MessageBoxButton.OK, MessageBoxImage.Hand);
+                return;
+            }
+
+            // Réorganiser les tables en fonction des dépendances
+            var orderedTables = await Task.Run(() => GetTablesInDependencyOrder(selectedOracleTables));
+
+            // Afficher l'ordre de migration prévu
+            var migrationOrder = string.Join("\n", orderedTables.Select((t, i) => $"{i + 1}. {t.TableName}"));
+            var result = MessageBox.Show(
+                $"Les tables seront migrées dans l'ordre suivant :\n\n{migrationOrder}\n\nVoulez-vous continuer ?",
+                "Ordre de migration",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information
+            );
+
+            if (result != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            var loadingWindow = new LoadingWindow(this) { Title = "Copying Data ..." };
+            loadingWindow.Show();
+
             try
             {
-              loadingWindow.lblStatus.Content = $"Copying table {table.TableName}...";
-              await Task.Run(() => MigrateTable(table));
-              LogMessage($"Successfully copied table {table.TableName}");
-            }
-            catch (Exception exception)
-            {
-              LogMessage($"Error copying table {table.TableName}: {exception.Message}");
-              await Dispatcher.InvokeAsync(() =>
-                MessageBox.Show($"Error copying table {table.TableName}: {exception.Message}",
-                  "Copy Error", MessageBoxButton.OK, MessageBoxImage.Error));
-            }
-          }
+                foreach (var table in orderedTables)
+                {
+                    try
+                    {
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            loadingWindow.lblStatus.Content = $"Copying table {table.TableName}...";
+                        });
 
-          await Dispatcher.InvokeAsync(() =>
-            MessageBox.Show("Copy completed. Check the log for details.",
-              "Copy Complete", MessageBoxButton.OK, MessageBoxImage.Information));
+                        await Dispatcher.InvokeAsync(() => MigrateTable(table));
+                        LogMessage($"Successfully copied table {table.TableName}");
+                    }
+                    catch (Exception exception)
+                    {
+                        LogMessage($"Error copying table {table.TableName}: {exception.Message}");
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            MessageBox.Show($"Error copying table {table.TableName}: {exception.Message}",
+                                "Copy Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        });
+                    }
+                }
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    MessageBox.Show("Copy completed. Check the log for details.",
+                        "Copy Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                });
+            }
+            finally
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    loadingWindow.Close();
+                });
+            }
         }
-        finally
+        catch (Exception exception)
         {
-          loadingWindow.Close();
+            LogMessage($"Copy error: {exception.Message}");
+            await Dispatcher.InvokeAsync(() =>
+            {
+                MessageBox.Show($"Copy error: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            });
         }
-      }
-      catch (Exception exception)
-      {
-        LogMessage($"Copy error: {exception.Message}");
-        MessageBox.Show($"Copy error: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-      }
+    }
+
+    private List<TableInfo> GetTablesInDependencyOrder(List<TableInfo> tables)
+    {
+        var orderedTables = new List<TableInfo>();
+        var dependencies = new Dictionary<string, HashSet<string>>();
+        var processedTables = new HashSet<string>();
+        string schema = string.Empty;
+
+        // Récupérer le schéma de manière thread-safe
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            schema = txtPostgresSchema.Text;
+        });
+
+        using (var connection = new NpgsqlConnection(GetPostgresConnectionString()))
+        {
+            connection.Open();
+
+            // Obtenir les dépendances pour chaque table
+            foreach (var table in tables)
+            {
+                using (var cmd = connection.CreateCommand())
+                {
+                    cmd.CommandTimeout = 300; // 5 minutes timeout
+                    cmd.CommandText = @"
+                        SELECT DISTINCT
+                            ccu.table_name as referenced_table
+                        FROM 
+                            information_schema.table_constraints tc
+                            JOIN information_schema.constraint_column_usage ccu 
+                                ON tc.constraint_name = ccu.constraint_name
+                                AND ccu.table_schema = tc.table_schema
+                        WHERE 
+                            tc.constraint_type = 'FOREIGN KEY'
+                            AND tc.table_schema = @schema
+                            AND tc.table_name = @tablename";
+
+                    cmd.Parameters.AddWithValue("tablename", table.TableName.ToLower());
+                    cmd.Parameters.AddWithValue("schema", schema);
+
+                    dependencies[table.TableName] = new HashSet<string>();
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var referencedTable = reader.GetString(0).ToUpper();
+                            dependencies[table.TableName].Add(referencedTable);
+                            LogMessage($"Found dependency: {table.TableName} -> {referencedTable}");
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fonction récursive pour ajouter les tables dans le bon ordre
+        void ProcessTable(string tableName, HashSet<string> processingStack = null)
+        {
+            if (processedTables.Contains(tableName))
+                return;
+
+            processingStack = processingStack ?? new HashSet<string>();
+            
+            // Détecter les dépendances circulaires
+            if (processingStack.Contains(tableName))
+            {
+                LogMessage($"Warning: Circular dependency detected for table {tableName}");
+                return;
+            }
+
+            processingStack.Add(tableName);
+
+            if (dependencies.ContainsKey(tableName))
+            {
+                foreach (var dep in dependencies[tableName])
+                {
+                    if (tables.Any(t => t.TableName.Equals(dep, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        ProcessTable(dep, processingStack);
+                    }
+                    else
+                    {
+                        // Si une table dépendante n'est pas sélectionnée, afficher un avertissement
+                        LogMessage($"Warning: Table {tableName} depends on {dep} but {dep} is not selected for migration");
+                    }
+                }
+            }
+
+            processingStack.Remove(tableName);
+            processedTables.Add(tableName);
+
+            var tableInfo = tables.First(t => t.TableName.Equals(tableName, StringComparison.OrdinalIgnoreCase));
+            if (!orderedTables.Contains(tableInfo))
+            {
+                orderedTables.Add(tableInfo);
+                LogMessage($"Added {tableInfo.TableName} to migration queue");
+            }
+        }
+
+        // Ajouter toutes les tables dans l'ordre
+        foreach (var table in tables)
+        {
+            ProcessTable(table.TableName);
+        }
+
+        // Afficher l'ordre de migration final
+        var migrationOrder = string.Join(" -> ", orderedTables.Select(t => t.TableName));
+        LogMessage($"Migration order: {migrationOrder}");
+
+        return orderedTables;
     }
 
     private void MigrateTable(TableInfo targetTable)
     {
       LoadingWindow loadingWindow = null;
-      using (var oracleConnection = new OracleConnection(GetOracleConnectionString()))
-      using (var postgresConnection = new NpgsqlConnection(GetPostgresConnectionString()))
+      string schema = txtPostgresSchema.Text;
+
+      try
       {
-        try
+        var sourceConnection = new OracleConnection(GetOracleConnectionString());
+        var targetConnection = new NpgsqlConnection(GetPostgresConnectionString());
+
+        sourceConnection.Open();
+        targetConnection.Open();
+
+        // Récupérer la structure de la table
+        var columnsQuery = $@"SELECT column_name, data_type, data_length, data_precision, data_scale, nullable
+                            FROM all_tab_columns 
+                            WHERE table_name = '{targetTable.TableName}' 
+                            ORDER BY column_id";
+
+        var columns = new List<ColumnInfo>();
+        var processedColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var cmd = new OracleCommand(columnsQuery, sourceConnection))
         {
-          oracleConnection.Open();
-          postgresConnection.Open();
-
-          // Truncate target table and drop foreign key constraints
-          using (var cmd = new NpgsqlCommand())
+          using (var reader = cmd.ExecuteReader())
           {
-            cmd.Connection = postgresConnection;
-            string schemaTable = string.Empty;
-
-            // Récupérer les valeurs UI de manière thread-safe
-            Application.Current.Dispatcher.Invoke(() =>
+            while (reader.Read())
             {
-              schemaTable = $"{txtPostgresSchema.Text}.{targetTable.TableName}";
-            });
-
-            // Get all foreign key constraints for this table
-            cmd.CommandText = @"
-              SELECT 
-                  tc.constraint_name,
-                  ccu.table_schema as foreign_table_schema,
-                  ccu.table_name as foreign_table_name
-              FROM information_schema.table_constraints tc
-              JOIN information_schema.constraint_column_usage ccu 
-                  ON tc.constraint_name = ccu.constraint_name
-              WHERE tc.constraint_type = 'FOREIGN KEY'
-              AND tc.table_schema = @schema
-              AND tc.table_name = @tablename";
-
-            string schema = string.Empty;
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-              schema = txtPostgresSchema.Text;
-            });
-
-            cmd.Parameters.AddWithValue("schema", schema);
-            cmd.Parameters.AddWithValue("tablename", targetTable.TableName);
-
-            var constraints = new List<(string name, string schema, string table)>();
-            using (var reader = cmd.ExecuteReader())
-            {
-              while (reader.Read())
+              var columnName = reader.GetString(0);
+              if (!processedColumns.Contains(columnName))
               {
-                constraints.Add((
-                  reader.GetString(0),
-                  reader.GetString(1),
-                  reader.GetString(2)
-                ));
+                processedColumns.Add(columnName);
+                columns.Add(new ColumnInfo
+                {
+                  ColumnName = columnName,
+                  DataType = reader.GetString(1),
+                  Length = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                  Precision = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                  Scale = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                  IsNullable = reader.GetString(5) == "Y"
+                });
               }
-            }
-            cmd.Parameters.Clear();
-
-            // Drop each foreign key constraint
-            foreach (var constraint in constraints)
-            {
-              cmd.CommandText = $"ALTER TABLE {schemaTable} DROP CONSTRAINT {constraint.name}";
-#pragma warning disable EC72 // Don't execute SQL commands in loops
-              cmd.ExecuteNonQuery();
-#pragma warning restore EC72 // Don't execute SQL commands in loops
-            }
-
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-              LogMessage($"Dropped {constraints.Count} foreign key constraints for table {schemaTable}");
-            });
-
-            // Disable user triggers
-            cmd.CommandText = $"ALTER TABLE {schemaTable} DISABLE TRIGGER USER";
-            cmd.ExecuteNonQuery();
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-              LogMessage($"Disabled user triggers for table {schemaTable}");
-            });
-
-            // Truncate the table
-            cmd.CommandText = $"TRUNCATE TABLE {schemaTable} RESTART IDENTITY CASCADE";
-            cmd.ExecuteNonQuery();
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-              LogMessage($"Table {schemaTable} truncated successfully");
-            });
-
-            try
-            {
-              // Get data from Oracle
-              var selectCommand = $"SELECT * FROM {targetTable.TableName}";
-              using (var oracleCmd = new OracleCommand(selectCommand, oracleConnection))
-              using (var reader = oracleCmd.ExecuteReader())
+              else
               {
-                // Get column names and types
-                var schemaInfo = reader.GetSchemaTable();
-                var columns = new List<string>();
-                var columnTypes = new List<Type>();
-                foreach (DataRow row in schemaInfo.Rows)
-                {
-                  columns.Add(row["ColumnName"].ToString());
-                  columnTypes.Add((Type)row["DataType"]);
-                }
-
-                // Prepare insert statement
-                var columnList = string.Join(",", columns);
-                var paramList = string.Join(",", columns.Select(c => $"@{c}"));
-                var insertCommand = $"INSERT INTO {schemaTable} ({columnList}) VALUES ({paramList})";
-
-                // Batch insert data
-                using (var transaction = postgresConnection.BeginTransaction())
-                {
-                  try
-                  {
-                    loadingWindow = new LoadingWindow(this) { Title = "Copying Data ..." };
-                    loadingWindow.Show();
-                    using (var insertCmd = new NpgsqlCommand(insertCommand, postgresConnection, transaction))
-                    {
-                      // Add parameters with correct types
-                      for (int i = 0; i < columns.Count; i++)
-                      {
-                        var npgsqlType = GetNpgsqlType(columnTypes[i]);
-                        insertCmd.Parameters.Add(new NpgsqlParameter($"@{columns[i]}", npgsqlType));
-                      }
-
-                      int rowCount = 0;
-                      while (reader.Read())
-                      {
-                        for (int i = 0; i < columns.Count; i++)
-                        {
-                          var value = reader.IsDBNull(i) ? DBNull.Value : reader.GetValue(i);
-                          insertCmd.Parameters[i].Value = value;
-                        }
-
-#pragma warning disable EC72 // Don't execute SQL commands in loops
-                        insertCmd.ExecuteNonQuery();
-#pragma warning restore EC72 // Don't execute SQL commands in loops
-                        rowCount++;
-
-                        if (rowCount % 1000 == 0)
-                        {
-                          Application.Current.Dispatcher.Invoke(() =>
-                          {
-                            LogMessage($"Inserted {rowCount} rows into {schemaTable}");
-                          });
-                        }
-                      }
-
-                      transaction.Commit();
-                      Application.Current.Dispatcher.Invoke(() =>
-                      {
-                        LogMessage($"Successfully migrated {rowCount} rows from {targetTable.TableName} to PostgreSQL");
-                      });
-                    }
-                  }
-                  catch (Exception exception)
-                  {
-                    transaction.Rollback();
-                    loadingWindow?.Close();
-                    throw new Exception($"Error while inserting data into {schemaTable}: {exception.Message}");
-                  }
-                }
+                LogMessage($"Warning: Duplicate column {columnName} found in table {targetTable.TableName}");
               }
-            }
-            finally
-            {
-              // Re-enable user triggers
-              cmd.CommandText = $"ALTER TABLE {schemaTable} ENABLE TRIGGER USER";
-              cmd.ExecuteNonQuery();
-
-              // Recreate each foreign key constraint
-              foreach (var constraint in constraints)
-              {
-                try
-                {
-                  // Get the constraint definition
-                  cmd.CommandText = $@"
-                    SELECT pg_get_constraintdef(oid) 
-                    FROM pg_constraint 
-                    WHERE conname = @constraintname";
-                  cmd.Parameters.AddWithValue("constraintname", constraint.name);
-                  string constraintDef = "";
-#pragma warning disable EC72 // Don't execute SQL commands in loops
-                  using (var reader = cmd.ExecuteReader())
-                  {
-                    if (reader.Read())
-                    {
-                      constraintDef = reader.GetString(0);
-                    }
-                  }
-#pragma warning restore EC72 // Don't execute SQL commands in loops
-                  cmd.Parameters.Clear();
-
-                  if (!string.IsNullOrEmpty(constraintDef))
-                  {
-                    // Recreate the constraint
-                    cmd.CommandText = $"ALTER TABLE {schemaTable} ADD CONSTRAINT {constraint.name} {constraintDef}";
-#pragma warning disable EC72 // Don't execute SQL commands in loops
-                    cmd.ExecuteNonQuery();
-#pragma warning restore EC72 // Don't execute SQL commands in loops
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                      LogMessage($"Recreated constraint {constraint.name}");
-                    });
-                  }
-                }
-                catch (Exception exception)
-                {
-                  Application.Current.Dispatcher.Invoke(() =>
-                  {
-                    LogMessage($"Warning: Could not recreate constraint {constraint.name}: {exception.Message}");
-                  });
-                  loadingWindow?.Close();
-                }
-              }
-
-              Application.Current.Dispatcher.Invoke(() =>
-              {
-                LogMessage($"Finished recreating constraints for table {schemaTable}");
-              });
-              loadingWindow?.Close();
             }
           }
         }
-        catch (Exception exception)
+
+        // Vérifier si la table a une auto-référence
+        bool hasAutoReference = false;
+        string autoReferenceColumn = null;
+        using (var cmd = new NpgsqlCommand(@"
+          SELECT DISTINCT kcu.column_name
+          FROM information_schema.table_constraints tc
+          JOIN information_schema.key_column_usage kcu 
+              ON tc.constraint_name = kcu.constraint_name
+              AND tc.table_schema = kcu.table_schema
+          JOIN information_schema.constraint_column_usage ccu
+              ON ccu.constraint_name = tc.constraint_name
+              AND ccu.table_schema = tc.table_schema
+          WHERE tc.constraint_type = 'FOREIGN KEY'
+              AND tc.table_schema = @schema
+              AND tc.table_name = @tablename
+              AND ccu.table_name = tc.table_name", targetConnection))
         {
-          Application.Current.Dispatcher.Invoke(() =>
+          cmd.Parameters.AddWithValue("schema", schema);
+          cmd.Parameters.AddWithValue("tablename", targetTable.TableName.ToLower());
+
+          using (var reader = cmd.ExecuteReader())
           {
-            LogMessage($"Error migrating table {targetTable.TableName}: {exception.Message}");
-          });
-          loadingWindow?.Close();
-          MessageBox.Show($"Error migrating table {targetTable.TableName}: {exception.Message}", "Migration Error", MessageBoxButton.OK, MessageBoxImage.Error);
-          return;
+            if (reader.Read())
+            {
+              hasAutoReference = true;
+              autoReferenceColumn = reader.GetString(0).ToUpper();
+              LogMessage($"Table {targetTable.TableName} has auto-reference on column {autoReferenceColumn}");
+            }
+          }
+        }
+
+        // Construire la requête de sélection
+        var columnList = string.Join(", ", columns.Select(c => c.ColumnName));
+        var selectQuery = $"SELECT {columnList} FROM {targetTable.TableName}";
+
+        // Construire la requête d'insertion
+        var columnListPg = string.Join(", ", columns.Select(c => c.ColumnName.ToLower()));
+        var paramList = string.Join(", ", columns.Select(c => $"@{c.ColumnName.ToLower()}"));
+        var insertQuery = $"INSERT INTO {schema}.{targetTable.TableName.ToLower()} ({columnListPg}) VALUES ({paramList})";
+
+        // Si la table a une auto-référence, on doit d'abord insérer avec NULL pour la référence
+        if (hasAutoReference)
+        {
+          insertQuery = $@"INSERT INTO {schema}.{targetTable.TableName.ToLower()} ({columnListPg}) 
+                         VALUES ({string.Join(", ", columns.Select(c => 
+                             c.ColumnName.Equals(autoReferenceColumn, StringComparison.OrdinalIgnoreCase) 
+                             ? "NULL" 
+                             : $"@{c.ColumnName.ToLower()}"))})"
+                         ;
+        }
+
+        // Lire les données source
+        using (var selectCmd = new OracleCommand(selectQuery, sourceConnection))
+        using (var reader = selectCmd.ExecuteReader())
+        {
+          var insertedRows = new List<Dictionary<string, object>>();
+
+          while (reader.Read())
+          {
+            var rowData = new Dictionary<string, object>();
+            using (var insertCmd = new NpgsqlCommand(insertQuery, targetConnection))
+            {
+              foreach (var column in columns)
+              {
+                var value = reader[column.ColumnName];
+                if (value == DBNull.Value)
+                {
+                  insertCmd.Parameters.AddWithValue($"@{column.ColumnName.ToLower()}", DBNull.Value);
+                }
+                else
+                {
+                  insertCmd.Parameters.AddWithValue($"@{column.ColumnName.ToLower()}", value);
+                }
+                rowData[column.ColumnName] = value;
+              }
+
+              try
+              {
+                insertCmd.ExecuteNonQuery();
+                insertedRows.Add(rowData);
+              }
+              catch (Exception ex)
+              {
+                LogMessage($"Error inserting row in {targetTable.TableName}: {ex.Message}");
+                throw;
+              }
+            }
+          }
+
+          // Si la table a une auto-référence, mettre à jour les références maintenant
+          if (hasAutoReference && insertedRows.Any())
+          {
+            LogMessage($"Updating self-references for table {targetTable.TableName}");
+            foreach (var row in insertedRows)
+            {
+              if (row[autoReferenceColumn] != DBNull.Value)
+              {
+                var updateQuery = $@"
+                  UPDATE {schema}.{targetTable.TableName.ToLower()}
+                  SET {autoReferenceColumn.ToLower()} = @parentid
+                  WHERE ";
+
+                // Trouver la clé primaire
+                using (var cmd = new NpgsqlCommand(@"
+                  SELECT DISTINCT kcu.column_name
+                  FROM information_schema.table_constraints tc
+                  JOIN information_schema.key_column_usage kcu 
+                      ON tc.constraint_name = kcu.constraint_name
+                      AND tc.table_schema = kcu.table_schema
+                  WHERE tc.constraint_type = 'PRIMARY KEY'
+                      AND tc.table_schema = @schema
+                      AND tc.table_name = @tablename", targetConnection))
+                {
+                  cmd.Parameters.AddWithValue("schema", schema);
+                  cmd.Parameters.AddWithValue("tablename", targetTable.TableName.ToLower());
+
+                  using (var pkReader = cmd.ExecuteReader())
+                  {
+                    if (pkReader.Read())
+                    {
+                      var pkColumn = pkReader.GetString(0).ToUpper();
+                      updateQuery += $"{pkColumn.ToLower()} = @id";
+
+                      using (var updateCmd = new NpgsqlCommand(updateQuery, targetConnection))
+                      {
+                        updateCmd.Parameters.AddWithValue("@parentid", row[autoReferenceColumn]);
+                        updateCmd.Parameters.AddWithValue("@id", row[pkColumn]);
+                        updateCmd.ExecuteNonQuery();
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
-
-      loadingWindow?.Close();
-      MessageBox.Show("Migration completed successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-    }
-
-    private NpgsqlDbType GetNpgsqlType(Type type)
-    {
-      if (DatabaseHelper.GetNpgsqlType(type) == NpgsqlDbType.Unknown)
+      catch (Exception)
       {
-        // To debug, let's display the not supported type
-        Application.Current.Dispatcher.Invoke(() =>
-        {
-          LogMessage($"not supported type detected: {type.FullName}");
-        });
-
-        throw new ArgumentException($"Not supported type: {type.FullName}", nameof(type));
+        throw;
       }
-
-      return DatabaseHelper.GetNpgsqlType(type);
     }
 
     public void UpdateOracleSelectedCount()
