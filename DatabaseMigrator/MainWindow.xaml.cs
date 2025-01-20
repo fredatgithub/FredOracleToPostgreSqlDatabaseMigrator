@@ -537,6 +537,7 @@ namespace DatabaseMigrator
       {
         txtLogs.AppendText($"[{timestamp}] {message}{Environment.NewLine}");
         txtLogs.ScrollToEnd();
+        SaveLogs();
       });
     }
 
@@ -1050,7 +1051,7 @@ namespace DatabaseMigrator
         }
 
         // Récupérer la structure de la table
-        var columnsQuery = $@"SELECT column_name, data_type, data_length, data_precision, data_scale, nullable
+        var columnsQuery = $@"SELECT column_name, data_type, data_length, data_precision, data_scale, nullable, column_id
                             FROM all_tab_columns 
                             WHERE table_name = '{targetTable.TableName}' 
                             ORDER BY column_id";
@@ -1079,13 +1080,51 @@ namespace DatabaseMigrator
               }
               else
               {
-                LogMessage($"Warning: Duplicate column {columnName} found in table {targetTable.TableName}");
+                var columnId = reader.GetInt32(6);
+                LogMessage($"Warning: Duplicate column {columnName} found in table {targetTable.TableName} at position {columnId}");
+                
+                // Get the table's constraints to understand the relationships
+                using (var constraintCmd = new OracleCommand($@"
+                    SELECT a.constraint_name, a.constraint_type, a.r_constraint_name,
+                           b.column_name, b.position
+                    FROM all_constraints a
+                    JOIN all_cons_columns b ON a.constraint_name = b.constraint_name
+                    WHERE a.table_name = '{targetTable.TableName}'
+                    AND b.column_name = '{columnName}'", sourceConnection))
+                {
+                    using (var constraintReader = constraintCmd.ExecuteReader())
+                    {
+                        while (constraintReader.Read())
+                        {
+                            var constraintInfo = $"Constraint: {constraintReader.GetString(0)}, " +
+                                               $"Type: {constraintReader.GetString(1)}, " +
+                                               $"Position: {constraintReader.GetInt32(4)}";
+                            LogMessage($"Related constraint for duplicate column {columnName}: {constraintInfo}");
+                        }
+                    }
+                }
               }
             }
           }
         }
 
-        // Vérifier si la table a une auto-référence
+        // Log table structure information
+        LogMessage($"Table {targetTable.TableName} structure:");
+        foreach (var col in columns)
+        {
+            LogMessage($"Column: {col.ColumnName}, Type: {col.DataType}, Nullable: {col.IsNullable}");
+        }
+
+        // Construire la requête de sélection
+        var columnList = string.Join(", ", columns.Select(c => c.ColumnName));
+        var selectQuery = $"SELECT {columnList} FROM {targetTable.TableName}";
+
+        // Construire la requête d'insertion
+        var columnListPg = string.Join(", ", columns.Select(c => c.ColumnName.ToLower()));
+        var paramList = string.Join(", ", columns.Select(c => $"@{c.ColumnName.ToLower()}"));
+        var insertQuery = $"INSERT INTO {schema}.{targetTable.TableName.ToLower()} ({columnListPg}) VALUES ({paramList})";
+
+        // Si la table a une auto-référence, on doit d'abord insérer avec NULL pour la référence
         bool hasAutoReference = false;
         string autoReferenceColumn = null;
         using (var cmd = new NpgsqlCommand(@"
@@ -1117,16 +1156,6 @@ namespace DatabaseMigrator
           }
         }
 
-        // Construire la requête de sélection
-        var columnList = string.Join(", ", columns.Select(c => c.ColumnName));
-        var selectQuery = $"SELECT {columnList} FROM {targetTable.TableName}";
-
-        // Construire la requête d'insertion
-        var columnListPg = string.Join(", ", columns.Select(c => c.ColumnName.ToLower()));
-        var paramList = string.Join(", ", columns.Select(c => $"@{c.ColumnName.ToLower()}"));
-        var insertQuery = $"INSERT INTO {schema}.{targetTable.TableName.ToLower()} ({columnListPg}) VALUES ({paramList})";
-
-        // Si la table a une auto-référence, on doit d'abord insérer avec NULL pour la référence
         if (hasAutoReference)
         {
           insertQuery = $@"INSERT INTO {schema}.{targetTable.TableName.ToLower()} ({columnListPg}) 
@@ -1166,6 +1195,20 @@ namespace DatabaseMigrator
               {
                 insertCmd.ExecuteNonQuery();
                 insertedRows.Add(rowData);
+              }
+              catch (Npgsql.PostgresException pgEx) when (pgEx.SqlState == "23503") // Foreign key violation
+              {
+                var details = $"Foreign key violation in table {targetTable.TableName}:\n";
+                details += $"Error: {pgEx.Message}\n";
+                details += $"Detail: {pgEx.Detail}\n";
+                details += "This usually means the referenced record in the parent table doesn't exist.";
+                LogMessage(details);
+                
+                // Log the data that caused the violation
+                var rowDataStr = string.Join(", ", rowData.Select(kv => $"{kv.Key}={kv.Value}"));
+                LogMessage($"Row data that caused violation: {rowDataStr}");
+                
+                throw;
               }
               catch (Exception exception)
               {
@@ -1313,6 +1356,7 @@ namespace DatabaseMigrator
         {
           sourceConnection.Dispose();
         }
+
         if (targetConnection != null)
         {
           targetConnection.Dispose();
