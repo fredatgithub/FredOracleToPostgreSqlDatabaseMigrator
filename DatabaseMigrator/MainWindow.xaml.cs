@@ -1301,7 +1301,7 @@ namespace DatabaseMigrator
                     enableTriggersCmd.ExecuteNonQuery();
                 }
             }
-            catch { } // Ignorer les erreurs lors de la réactivation
+            catch { } // Ignore errors when reactivating triggers
         }
 
         LogMessage($"Error copying table {targetTable.TableName}: {exception.Message}");
