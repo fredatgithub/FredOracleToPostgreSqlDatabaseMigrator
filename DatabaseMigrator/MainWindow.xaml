@@ -259,47 +259,41 @@
               <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
               </Grid.RowDefinitions>
 
               <StackPanel Grid.Row="0">
-                <Button Content="Load Stored Procedures" 
-                       Name="btnLoadOracleStoredProcs"
-                       Margin="0,0,0,10"
-                       Padding="10,5"
-                       Background="#FF007ACC"
-                       Foreground="White"
-                       Click="BtnLoadOracleStoredProcs_Click"/>
-                <TextBox Name="txtOracleStoredProcsSearch" 
-                        Margin="0,0,0,10"
-                        Text=""
-                        ToolTip="Search stored procedures"/>
+                <DockPanel Margin="0,0,0,10">
+                  <Button Name="btnLoadOracleStoredProcs"
+                          Content="Load Stored Procedures"
+                          Padding="10,5"
+                          Background="#FF007ACC"
+                          Foreground="White"
+                          DockPanel.Dock="Left"/>
+                  <TextBox Name="txtOracleStoredProcsSearch"
+                           Margin="10,0,0,0"
+                           Padding="5"
+                           VerticalContentAlignment="Center"
+                           Text=""
+                           DockPanel.Dock="Right"/>
+                </DockPanel>
+                <DockPanel>
+                  <TextBlock Name="txtOracleSelectedStoredProcsCount" Text="0" DockPanel.Dock="Left"/>
+                  <TextBlock Name="txtOracleStoredProcsLabel" Text=" stored procedure" DockPanel.Dock="Left"/>
+                  <TextBlock Text=" selected" DockPanel.Dock="Left"/>
+                </DockPanel>
               </StackPanel>
 
-              <ListView Grid.Row="1" 
-                       Name="lstOracleStoredProcs"
-                       Margin="0,0,0,10">
-                <ListView.ItemTemplate>
+              <ListBox Name="lstOracleStoredProcs"
+                       Grid.Row="1"
+                       Margin="0,10,0,0"
+                       SelectionMode="Extended">
+                <ListBox.ItemTemplate>
                   <DataTemplate>
-                    <StackPanel Orientation="Horizontal">
-                      <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center"/>
-                      <TextBlock Text="{Binding ProcedureName}" Margin="5,0,0,0" VerticalAlignment="Center"/>
-                    </StackPanel>
+                    <CheckBox Content="{Binding ProcedureName}"
+                             IsChecked="{Binding IsSelected}"/>
                   </DataTemplate>
-                </ListView.ItemTemplate>
-                <ListView.ItemContainerStyle>
-                  <Style TargetType="ListViewItem">
-                    <Setter Property="Background" Value="{Binding Background}"/>
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                  </Style>
-                </ListView.ItemContainerStyle>
-              </ListView>
-
-              <StackPanel Grid.Row="2" Orientation="Horizontal">
-                <TextBlock Text="Selected: " VerticalAlignment="Center"/>
-                <TextBlock Name="txtOracleSelectedProcsCount" Text="0" VerticalAlignment="Center"/>
-                <TextBlock Name="txtOracleProcsLabel" Text=" procedure" VerticalAlignment="Center"/>
-              </StackPanel>
+                </ListBox.ItemTemplate>
+              </ListBox>
             </Grid>
           </GroupBox>
 
@@ -308,49 +302,53 @@
               <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
               </Grid.RowDefinitions>
 
               <StackPanel Grid.Row="0">
-                <Button Content="Load Stored Procedures" 
-                       Name="btnLoadPostgresStoredProcs"
-                       Margin="0,0,0,10"
-                       Padding="10,5"
-                       Background="#FF007ACC"
-                       Foreground="White"
-                       Click="BtnLoadPostgresStoredProcs_Click"/>
-                <TextBox Name="txtPostgresStoredProcsSearch" 
-                        Margin="0,0,0,10"
-                        Text=""
-                        ToolTip="Search stored procedures"/>
+                <DockPanel Margin="0,0,0,10">
+                  <Button Name="btnLoadPostgresStoredProcs"
+                          Content="Load Stored Procedures"
+                          Padding="10,5"
+                          Background="#FF007ACC"
+                          Foreground="White"
+                          DockPanel.Dock="Left"/>
+                  <TextBox Name="txtPostgresStoredProcsSearch"
+                           Margin="10,0,0,0"
+                           Padding="5"
+                           VerticalContentAlignment="Center"
+                           Text=""
+                           DockPanel.Dock="Right"/>
+                </DockPanel>
+                <DockPanel>
+                  <TextBlock Name="txtPostgresSelectedStoredProcsCount" Text="0" DockPanel.Dock="Left"/>
+                  <TextBlock Name="txtPostgresStoredProcsLabel" Text=" stored procedure" DockPanel.Dock="Left"/>
+                  <TextBlock Text=" selected" DockPanel.Dock="Left"/>
+                </DockPanel>
               </StackPanel>
 
-              <ListView Grid.Row="1" 
-                       Name="lstPostgresStoredProcs"
-                       Margin="0,0,0,10">
-                <ListView.ItemTemplate>
+              <ListBox Name="lstPostgresStoredProcs"
+                       Grid.Row="1"
+                       Margin="0,10,0,0"
+                       SelectionMode="Extended">
+                <ListBox.ItemTemplate>
                   <DataTemplate>
-                    <StackPanel Orientation="Horizontal">
-                      <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center"/>
-                      <TextBlock Text="{Binding ProcedureName}" Margin="5,0,0,0" VerticalAlignment="Center"/>
-                    </StackPanel>
+                    <CheckBox Content="{Binding ProcedureName}"
+                             IsChecked="{Binding IsSelected}"/>
                   </DataTemplate>
-                </ListView.ItemTemplate>
-                <ListView.ItemContainerStyle>
-                  <Style TargetType="ListViewItem">
-                    <Setter Property="Background" Value="{Binding Background}"/>
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                  </Style>
-                </ListView.ItemContainerStyle>
-              </ListView>
-
-              <StackPanel Grid.Row="2" Orientation="Horizontal">
-                <TextBlock Text="Selected: " VerticalAlignment="Center"/>
-                <TextBlock Name="txtPostgresSelectedProcsCount" Text="0" VerticalAlignment="Center"/>
-                <TextBlock Name="txtPostgresProcsLabel" Text=" procedure" VerticalAlignment="Center"/>
-              </StackPanel>
+                </ListBox.ItemTemplate>
+              </ListBox>
             </Grid>
           </GroupBox>
+
+          <Button Name="btnMigrateStoredProcs"
+                  Content="Migrate Selected Stored Procedures ➔"
+                  Padding="10,5"
+                  Background="#FF007ACC"
+                  Foreground="White"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Bottom"
+                  Margin="0,0,0,10"
+                  Grid.ColumnSpan="2"/>
         </Grid>
       </TabItem>
       <TabItem Header="Logs">

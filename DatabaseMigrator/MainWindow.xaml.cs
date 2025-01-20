@@ -19,6 +19,8 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Text.RegularExpressions;
+using System.Text;
 
 namespace DatabaseMigrator
 {
@@ -29,20 +31,15 @@ namespace DatabaseMigrator
     private string _oracleCredentialsFile = "id_oracle.txt";
     private string _pgCredentialsFile = "id_pg.txt";
     private readonly string _logFile = "log.txt";
-    private readonly IOracleService _oracleService;
-    private readonly IPostgresService _postgresService;
+    private IOracleService _oracleService;
+    private IPostgresService _postgresService;
     private const float DefaultWindowTop = 0.00f;
     private const float DefaultWindowLeft = 0.00f;
 
     public MainWindow()
     {
       InitializeComponent();
-      _oracleService = new OracleService();
-      _postgresService = new PostgresService();
-      LoadProfilCombobox();
-      LoadLastProfilUsed();
-      LoadCredentials();
-      LoadLogs();
+      InitializeServices();
 
       // Wire up button click events
       btnTestOracle.Click += BtnTestOracle_Click;
@@ -51,16 +48,143 @@ namespace DatabaseMigrator
       btnLoadPostgresTables.Click += BtnLoadPostgresTables_Click;
       btnLoadOracleStoredProcs.Click += BtnLoadOracleStoredProcs_Click;
       btnLoadPostgresStoredProcs.Click += BtnLoadPostgresStoredProcs_Click;
+      btnMigrateStoredProcs.Click += BtnMigrateStoredProcs_Click;
 
       // Wire up search text changed events
       txtOracleSearch.TextChanged += TxtOracleSearch_TextChanged;
       txtPostgresSearch.TextChanged += TxtPostgresSearch_TextChanged;
+      txtOracleStoredProcsSearch.TextChanged += TxtOracleStoredProcsSearch_TextChanged;
+      txtPostgresStoredProcsSearch.TextChanged += TxtPostgresStoredProcsSearch_TextChanged;
 
       // Wire up selection changed events
       lstOracleTables.SelectionChanged += LstOracleTables_SelectionChanged;
       lstPostgresTables.SelectionChanged += LstPostgresTables_SelectionChanged;
       lstOracleStoredProcs.SelectionChanged += LstOracleStoredProcs_SelectionChanged;
       lstPostgresStoredProcs.SelectionChanged += LstPostgresStoredProcs_SelectionChanged;
+
+      // Wire up checkbox checked events
+      chkSaveOracle.Checked += ChkSaveOracle_Checked;
+      chkSavePostgres.Checked += ChkSavePostgres_Checked;
+
+      LoadProfilCombobox();
+      LoadLastProfilUsed();
+      LoadCredentials();
+      LoadLogs();
+
+      // Initialize other components
+    }
+
+    private void InitializeServices()
+    {
+      try
+      {
+        var oracleConnectionString = GetOracleConnectionString();
+        var postgresConnectionString = GetPostgresConnectionString();
+        var postgresSchema = txtPostgresSchema.Text?.ToLower();
+
+        // Vérifier que les chaînes de connexion sont valides
+        if (string.IsNullOrEmpty(oracleConnectionString))
+        {
+          throw new ArgumentException("Oracle connection string is empty. Please configure Oracle connection settings.");
+        }
+
+        if (string.IsNullOrEmpty(postgresConnectionString))
+        {
+          throw new ArgumentException("PostgreSQL connection string is empty. Please configure PostgreSQL connection settings.");
+        }
+
+        if (string.IsNullOrEmpty(postgresSchema))
+        {
+          throw new ArgumentException("PostgreSQL schema is empty. Please enter a schema name.");
+        }
+
+        _oracleService = new OracleService(oracleConnectionString);
+        _postgresService = new PostgresService(postgresConnectionString, postgresSchema);
+      }
+      catch (Exception exception)
+      {
+        MessageBox.Show($"Error initializing database services: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        LogMessage($"Error initializing database services: {exception.Message}");
+      }
+    }
+
+    private string GetPostgresConnectionString()
+    {
+      try
+      {
+        var builder = new NpgsqlConnectionStringBuilder();
+        var credentials = LoadCredentials(_pgCredentialsFile);
+
+        if (credentials == null || string.IsNullOrEmpty(credentials.Username) || string.IsNullOrEmpty(credentials.Password))
+        {
+          throw new ArgumentException("PostgreSQL credentials are not configured.");
+        }
+
+        builder.Host = txtPostgresServer.Text;
+        builder.Port = int.Parse(txtPostgresPort.Text);
+        builder.Database = txtPostgresDatabase.Text;
+        builder.Username = credentials.Username;
+        builder.Password = credentials.Password;
+
+        // Vérifier les champs obligatoires
+        if (string.IsNullOrEmpty(builder.Host))
+        {
+          throw new ArgumentException("PostgreSQL host is required.");
+        }
+        if (string.IsNullOrEmpty(builder.Database))
+        {
+          throw new ArgumentException("PostgreSQL database name is required.");
+        }
+        if (builder.Port <= 0)
+        {
+          throw new ArgumentException("Invalid PostgreSQL port number.");
+        }
+
+        return builder.ConnectionString;
+      }
+      catch (Exception ex)
+      {
+        throw new ArgumentException($"Error building PostgreSQL connection string: {ex.Message}");
+      }
+    }
+
+    private string GetOracleConnectionString()
+    {
+      try
+      {
+        var builder = new OracleConnectionStringBuilder();
+        var credentials = LoadCredentials(_oracleCredentialsFile);
+
+        if (credentials == null || string.IsNullOrEmpty(credentials.Username) || string.IsNullOrEmpty(credentials.Password))
+        {
+          throw new ArgumentException("Oracle credentials are not configured.");
+        }
+
+        // Format : "Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=XE)));User Id=system;Password=oracle"
+        builder.DataSource = $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={txtOracleServer.Text})(PORT={txtOraclePort.Text}))(CONNECT_DATA=(SERVICE_NAME={txtOracleServiceName.Text})))";
+        builder.UserID = credentials.Username;
+        builder.Password = credentials.Password;
+
+        // Vérifier les champs obligatoires
+        if (string.IsNullOrEmpty(txtOracleServer.Text))
+        {
+          throw new ArgumentException("Oracle host is required.");
+        }
+        if (string.IsNullOrEmpty(txtOracleServiceName.Text))
+        {
+          throw new ArgumentException("Oracle service name is required.");
+        }
+        if (!int.TryParse(txtOraclePort.Text, out int port) || port <= 0)
+        {
+          throw new ArgumentException("Invalid Oracle port number.");
+        }
+
+        return builder.ConnectionString;
+      }
+      catch (Exception ex)
+      {
+        throw new ArgumentException($"Error building Oracle connection string: {ex.Message}");
+      }
     }
 
     private void LoadLastProfilUsed()
@@ -396,6 +520,28 @@ namespace DatabaseMigrator
       }
     }
 
+    private DbCredentials LoadCredentials(string filename)
+    {
+      try
+      {
+        if (File.Exists(filename))
+        {
+          var encrypted = File.ReadAllText(filename);
+          var decrypted = EncryptionHelper.Decrypt(encrypted);
+          if (!string.IsNullOrEmpty(decrypted))
+          {
+            return JsonConvert.DeserializeObject<DbCredentials>(decrypted);
+          }
+        }
+        return null;
+      }
+      catch (Exception exception)
+      {
+        MessageBox.Show($"Error loading credentials from {filename}: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        return null;
+      }
+    }
+
     private void LoadCredentials()
     {
       try
@@ -612,47 +758,6 @@ namespace DatabaseMigrator
       }
     }
 
-    private string GetOracleConnectionString()
-    {
-      string oracleServer = string.Empty;
-      string oraclePort = string.Empty;
-      string oracleServiceName = string.Empty;
-      string oracleUser = string.Empty;
-      string oraclePassword = string.Empty;
-
-      Application.Current.Dispatcher.Invoke(() =>
-      {
-        oracleServer = txtOracleServer.Text;
-        oraclePort = txtOraclePort.Text;
-        oracleServiceName = txtOracleServiceName.Text;
-        oracleUser = txtOracleUser.Text;
-        oraclePassword = pwdOraclePassword.Password;
-      });
-
-      return $"Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={oracleServer})(PORT={oraclePort}))(CONNECT_DATA=(SERVICE_NAME={oracleServiceName})));User Id={oracleUser};Password={oraclePassword};";
-    }
-
-    private string GetPostgresConnectionString()
-    {
-      string server = string.Empty;
-      string port = string.Empty;
-      string database = string.Empty;
-      string user = string.Empty;
-      string password = string.Empty;
-
-      Application.Current.Dispatcher.Invoke(() =>
-      {
-        server = txtPostgresServer.Text;
-        port = txtPostgresPort.Text;
-        database = txtPostgresDatabase.Text;
-        user = txtPostgresUser.Text;
-        password = pwdPostgresPassword.Password;
-      });
-
-      return $"Host={server};Port={port};Database={database};Username={user};Password={password}";
-
-    }
-
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
       // Restore window position and size
@@ -844,6 +949,7 @@ namespace DatabaseMigrator
           using (var cmd = targetConnection.CreateCommand())
           {
             cmd.CommandTimeout = 0;
+            // First, get table list
             cmd.CommandText = @"
                 WITH RECURSIVE fk_tree AS (
                     -- Requête de base : obtenir toutes les dépendances directes
@@ -1354,11 +1460,19 @@ namespace DatabaseMigrator
       {
         if (sourceConnection != null)
         {
+          if (sourceConnection.State == ConnectionState.Open)
+          {
+            sourceConnection.Close();
+          }
           sourceConnection.Dispose();
         }
 
         if (targetConnection != null)
         {
+          if (targetConnection.State == ConnectionState.Open)
+          {
+            targetConnection.Close();
+          }
           targetConnection.Dispose();
         }
       }
@@ -1386,21 +1500,23 @@ namespace DatabaseMigrator
 
     private void UpdateOracleStoredProcsSelectedCount()
     {
-      if (lstOracleStoredProcs.ItemsSource is IEnumerable<StoredProcedureItem> procedures)
+      if (lstOracleStoredProcs.ItemsSource != null)
       {
+        var procedures = lstOracleStoredProcs.ItemsSource.Cast<StoredProcedureItem>();
         var selectedCount = procedures.Count(p => p.IsSelected);
-        txtOracleSelectedProcsCount.Text = selectedCount.ToString();
-        txtOracleProcsLabel.Text = $" stored procedure{StringHelper.Plural(selectedCount)}";
+        txtOracleSelectedStoredProcsCount.Text = selectedCount.ToString();
+        txtOracleStoredProcsLabel.Text = $" stored procedure{StringHelper.Plural(selectedCount)}";
       }
     }
 
     private void UpdatePostgresStoredProcsSelectedCount()
     {
-      if (lstPostgresStoredProcs.ItemsSource is IEnumerable<StoredProcedureItem> procedures)
+      if (lstPostgresStoredProcs.ItemsSource != null)
       {
+        var procedures = lstPostgresStoredProcs.ItemsSource.Cast<StoredProcedureItem>();
         var selectedCount = procedures.Count(p => p.IsSelected);
-        txtPostgresSelectedProcsCount.Text = selectedCount.ToString();
-        txtPostgresProcsLabel.Text = $" stored procedure{StringHelper.Plural(selectedCount)}";
+        txtPostgresSelectedStoredProcsCount.Text = selectedCount.ToString();
+        txtPostgresStoredProcsLabel.Text = $" stored procedure{StringHelper.Plural(selectedCount)}";
       }
     }
 
@@ -1546,6 +1662,230 @@ namespace DatabaseMigrator
     private string ChangeProfileNameToProfileFilenameForPostgresql(string profileName)
     {
       return _pgCredentialsFileTemplate.Replace("{profilName}", profileName);
+    }
+
+    private async void BtnMigrateStoredProcs_Click(object sender, RoutedEventArgs e)
+    {
+      OracleConnection sourceConnection = null;
+      NpgsqlConnection targetConnection = null;
+
+      try
+      {
+        btnMigrateStoredProcs.IsEnabled = false;
+        Mouse.OverrideCursor = Cursors.Wait;
+
+        var selectedProcs = lstOracleStoredProcs.ItemsSource.Cast<StoredProcedureItem>()
+            .Where(p => p.IsSelected)
+            .ToList();
+
+        if (!selectedProcs.Any())
+        {
+          MessageBox.Show("Please select at least one stored procedure to migrate.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+          return;
+        }
+
+        sourceConnection = new OracleConnection(GetOracleConnectionString());
+        targetConnection = new NpgsqlConnection(GetPostgresConnectionString());
+
+        await sourceConnection.OpenAsync();
+        await targetConnection.OpenAsync();
+
+        var schema = txtPostgresSchema.Text.ToLower();
+        
+        foreach (var proc in selectedProcs)
+        {
+          try
+          {
+            await MigrateStoredProcedure(proc.ProcedureName, sourceConnection, targetConnection, schema);
+            LogMessage($"Successfully migrated stored procedure {proc.ProcedureName}");
+          }
+          catch (Exception exception)
+          {
+            LogMessage($"Error migrating stored procedure {proc.ProcedureName}: {exception.Message}");
+          }
+        }
+      }
+      catch (Exception exception)
+      {
+        MessageBox.Show($"Error during stored procedures migration: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        LogMessage($"Error during stored procedures migration: {exception.Message}");
+      }
+      finally
+      {
+        if (sourceConnection != null)
+        {
+          if (sourceConnection.State == ConnectionState.Open)
+          {
+            sourceConnection.Close();
+          }
+          sourceConnection.Dispose();
+        }
+
+        if (targetConnection != null)
+        {
+          if (targetConnection.State == ConnectionState.Open)
+          {
+            await targetConnection.CloseAsync();
+          }
+          targetConnection.Dispose();
+        }
+        btnMigrateStoredProcs.IsEnabled = true;
+        Mouse.OverrideCursor = null;
+      }
+    }
+
+    private async Task MigrateStoredProcedure(string procedureName, OracleConnection sourceConnection, NpgsqlConnection targetConnection, string schema)
+    {
+      // Récupérer le code source de la procédure Oracle
+      string oracleSource = await GetOracleProcedureSource(procedureName, sourceConnection);
+      
+      // Convertir le code Oracle en PostgreSQL
+      string postgresSource = ConvertOracleToPostgresProcedure(oracleSource, procedureName, schema);
+      
+      // Supprimer la procédure si elle existe déjà
+      await DropExistingProcedure(procedureName, targetConnection, schema);
+      
+      // Créer la nouvelle procédure
+      using (var createCmd = new NpgsqlCommand(postgresSource, targetConnection))
+      {
+        await createCmd.ExecuteNonQueryAsync();
+      }
+    }
+
+    private async Task<string> GetOracleProcedureSource(string procedureName, OracleConnection connection)
+    {
+      var query = @"
+        SELECT text
+        FROM all_source 
+        WHERE type = 'PROCEDURE'
+        AND name = :procName
+        ORDER BY line";
+
+      using (var cmd = new OracleCommand(query, connection))
+      {
+        cmd.Parameters.Add(new OracleParameter("procName", procedureName));
+        
+        var source = new StringBuilder();
+        using (var reader = await cmd.ExecuteReaderAsync())
+        {
+          while (await reader.ReadAsync())
+          {
+            source.Append(reader.GetString(0));
+          }
+        }
+
+        return source.ToString();
+      }
+    }
+
+    private async Task DropExistingProcedure(string procedureName, NpgsqlConnection connection, string schema)
+    {
+      try
+      {
+        var query = $"DROP PROCEDURE IF EXISTS {schema}.{procedureName.ToLower()}";
+        using (var cmd = new NpgsqlCommand(query, connection))
+        {
+          await cmd.ExecuteNonQueryAsync();
+        }
+      }
+      catch (Exception ex)
+      {
+        LogMessage($"Warning: Could not drop existing procedure {procedureName}: {ex.Message}");
+      }
+    }
+
+    private string ConvertOracleToPostgresProcedure(string oracleSource, string procedureName, string schema)
+    {
+      // Conversion de base du code Oracle en PostgreSQL
+      var postgresSource = oracleSource
+        .Replace("BEGIN", "BEGIN")  // Garder BEGIN tel quel
+        .Replace("END;", "END;")    // Garder END tel quel
+        .Replace(":=", "=")         // Remplacer l'opérateur d'affectation
+        .Replace("SYSDATE", "CURRENT_TIMESTAMP") // Remplacer SYSDATE
+        .ToLower();                 // PostgreSQL préfère le minuscule
+
+      // Ajuster la déclaration de la procédure
+      var match = Regex.Match(postgresSource, @"procedure\s+" + procedureName.ToLower() + @"\s*\((.*?)\)", RegexOptions.IgnoreCase);
+      if (match.Success)
+      {
+        var parameters = match.Groups[1].Value;
+        // Convertir les paramètres Oracle en format PostgreSQL
+        parameters = ConvertParameters(parameters);
+        
+        postgresSource = $"CREATE OR REPLACE PROCEDURE {schema}.{procedureName.ToLower()}({parameters})\nLANGUAGE plpgsql\nAS $$\n{postgresSource}\n$$;";
+      }
+
+      return postgresSource;
+    }
+
+    private string ConvertParameters(string parameters)
+    {
+      if (string.IsNullOrWhiteSpace(parameters)) return "";
+
+      var paramList = parameters.Split(',')
+          .Select(p => p.Trim())
+          .Select(p =>
+          {
+            // Convertir les types de données Oracle en types PostgreSQL
+            return p.Replace("VARCHAR2", "VARCHAR")
+                   .Replace("NUMBER", "NUMERIC")
+                   .Replace("DATE", "TIMESTAMP")
+                   .Replace("CLOB", "TEXT")
+                   .Replace("IN OUT", "INOUT")
+                   .ToLower();
+          });
+
+      return string.Join(", ", paramList);
+    }
+
+    private void TxtOracleStoredProcsSearch_TextChanged(object sender, TextChangedEventArgs e)
+    {
+      FilterOracleStoredProcs();
+    }
+
+    private void TxtPostgresStoredProcsSearch_TextChanged(object sender, TextChangedEventArgs e)
+    {
+      FilterPostgresStoredProcs();
+    }
+
+    private void FilterOracleStoredProcs()
+    {
+      if (lstOracleStoredProcs.ItemsSource == null) return;
+
+      var searchText = txtOracleStoredProcsSearch.Text.ToLower();
+      var procedures = lstOracleStoredProcs.ItemsSource.Cast<StoredProcedureItem>().ToList();
+
+      if (string.IsNullOrWhiteSpace(searchText))
+      {
+        lstOracleStoredProcs.ItemsSource = procedures;
+      }
+      else
+      {
+        var filtered = procedures.Where(p => p.ProcedureName.ToLower().Contains(searchText)).ToList();
+        lstOracleStoredProcs.ItemsSource = filtered;
+      }
+
+      UpdateOracleStoredProcsSelectedCount();
+    }
+
+    private void FilterPostgresStoredProcs()
+    {
+      if (lstPostgresStoredProcs.ItemsSource == null) return;
+
+      var searchText = txtPostgresStoredProcsSearch.Text.ToLower();
+      var procedures = lstPostgresStoredProcs.ItemsSource.Cast<StoredProcedureItem>().ToList();
+
+      if (string.IsNullOrWhiteSpace(searchText))
+      {
+        lstPostgresStoredProcs.ItemsSource = procedures;
+      }
+      else
+      {
+        var filtered = procedures.Where(p => p.ProcedureName.ToLower().Contains(searchText)).ToList();
+        lstPostgresStoredProcs.ItemsSource = filtered;
+      }
+
+      UpdatePostgresStoredProcsSelectedCount();
     }
   }
 }
