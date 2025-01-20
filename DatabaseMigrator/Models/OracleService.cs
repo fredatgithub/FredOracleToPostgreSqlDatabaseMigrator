@@ -39,21 +39,38 @@ namespace DatabaseMigrator
       }
     }
 
-    public List<string> GetStoredProcedures()
+    public List<OracleProgramUnit> GetStoredProcedures()
     {
-      var procedures = new List<string>();
+      var procedures = new List<OracleProgramUnit>();
       
       using (var connection = new OracleConnection(_connectionString))
       {
         connection.Open();
 
-        // Requête pour obtenir toutes les procédures stockées
+        // Requête pour obtenir toutes les procédures stockées, fonctions et packages
         var query = @"
-          SELECT DISTINCT OBJECT_NAME 
-          FROM ALL_PROCEDURES 
+          SELECT OBJECT_NAME, OBJECT_TYPE, 
+                 CASE 
+                   WHEN OBJECT_TYPE = 'PACKAGE' THEN 
+                     (SELECT LISTAGG(PROCEDURE_NAME, ',') WITHIN GROUP (ORDER BY PROCEDURE_NAME)
+                      FROM ALL_PROCEDURES 
+                      WHERE OWNER = p.OWNER 
+                      AND OBJECT_NAME = p.OBJECT_NAME
+                      AND PROCEDURE_NAME IS NOT NULL)
+                   ELSE NULL 
+                 END AS PACKAGE_PROCEDURES
+          FROM ALL_OBJECTS p
           WHERE OWNER = :owner 
-          AND OBJECT_TYPE = 'PROCEDURE'
-          ORDER BY OBJECT_NAME";
+          AND OBJECT_TYPE IN ('PROCEDURE', 'FUNCTION', 'PACKAGE')
+          AND STATUS = 'VALID'
+          ORDER BY 
+            CASE OBJECT_TYPE 
+              WHEN 'PACKAGE' THEN 1
+              WHEN 'PROCEDURE' THEN 2
+              WHEN 'FUNCTION' THEN 3
+              ELSE 4
+            END,
+            OBJECT_NAME";
 
         using (var command = new OracleCommand(query, connection))
         {
@@ -63,7 +80,16 @@ namespace DatabaseMigrator
           {
             while (reader.Read())
             {
-              procedures.Add(reader.GetString(0));
+              var name = reader.GetString(0);
+              var type = reader.GetString(1);
+              var packageProcedures = reader.IsDBNull(2) ? null : reader.GetString(2);
+
+              procedures.Add(new OracleProgramUnit
+              {
+                Name = name,
+                Type = type,
+                PackageProcedures = packageProcedures?.Split(',').ToList()
+              });
             }
           }
         }
@@ -71,5 +97,12 @@ namespace DatabaseMigrator
 
       return procedures;
     }
+  }
+
+  public class OracleProgramUnit
+  {
+    public string Name { get; set; }
+    public string Type { get; set; }
+    public List<string> PackageProcedures { get; set; }
   }
 }
