@@ -1,12 +1,12 @@
-using System.Collections.Generic;
-using Oracle.ManagedDataAccess.Client;
-using System.Data;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using DatabaseMigrator.Models;
+using Oracle.ManagedDataAccess.Client;
 
 namespace DatabaseMigrator
 {
-  public class OracleService : IOracleService
+  public class OracleService: IOracleService
   {
     private readonly string _connectionString;
     private readonly string _owner;
@@ -29,7 +29,7 @@ namespace DatabaseMigrator
         // En cas d'erreur, on essaie de parser manuellement
         var userIdPart = connectionString.Split(';')
             .FirstOrDefault(p => p.Trim().StartsWith("User Id=", StringComparison.OrdinalIgnoreCase));
-        
+
         if (userIdPart != null)
         {
           return userIdPart.Split('=')[1].Trim().ToUpper();
@@ -39,10 +39,10 @@ namespace DatabaseMigrator
       }
     }
 
-    public List<OracleProgramUnit> GetStoredProcedures()
+    public List<OracleProcStockUnit> GetStoredProcedures()
     {
-      var procedures = new List<OracleProgramUnit>();
-      
+      var procedures = new List<OracleProcStockUnit>();
+
       using (var connection = new OracleConnection(_connectionString))
       {
         connection.Open();
@@ -84,7 +84,7 @@ namespace DatabaseMigrator
               var type = reader.GetString(1);
               var packageProcedures = reader.IsDBNull(2) ? null : reader.GetString(2);
 
-              procedures.Add(new OracleProgramUnit
+              procedures.Add(new OracleProcStockUnit
               {
                 Name = name,
                 Type = type,
@@ -97,12 +97,5 @@ namespace DatabaseMigrator
 
       return procedures;
     }
-  }
-
-  public class OracleProgramUnit
-  {
-    public string Name { get; set; }
-    public string Type { get; set; }
-    public List<string> PackageProcedures { get; set; }
   }
 }

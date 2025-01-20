@@ -1544,6 +1544,7 @@ namespace DatabaseMigrator
             Margin = new Thickness(5, 0, 5, 0),
             Foreground = GetColorForType(proc.Type)
           };
+
           var nameBlock = new TextBlock { Text = proc.Name };
 
           ((StackPanel)item.Content).Children.Add(checkBox);
@@ -1558,6 +1559,7 @@ namespace DatabaseMigrator
               Margin = new Thickness(5, 0, 0, 0),
               Foreground = Brushes.Gray
             };
+
             ((StackPanel)item.Content).Children.Add(proceduresBlock);
           }
 
@@ -1598,7 +1600,7 @@ namespace DatabaseMigrator
       var searchText = txtOracleStoredProcsSearch.Text.ToLower();
       view.Filter = item =>
       {
-        if (item is ListBoxItem listBoxItem && listBoxItem.Tag is OracleProgramUnit proc)
+        if (item is ListBoxItem listBoxItem && listBoxItem.Tag is OracleProcStockUnit proc)
         {
           var matchName = proc.Name.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0;
           var matchType = proc.Type.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0;
@@ -1617,7 +1619,7 @@ namespace DatabaseMigrator
           .Cast<ListBoxItem>()
           .Where(item => item.Content is StackPanel panel && 
                         panel.Children.OfType<CheckBox>().First().IsChecked == true)
-          .Select(item => item.Tag as OracleProgramUnit)
+          .Select(item => item.Tag as OracleProcStockUnit)
           .ToList();
 
         if (!selectedProcs.Any())

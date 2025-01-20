@@ -139,6 +139,7 @@
     <Compile Include="Models\DbCredentials.cs" />
     <Compile Include="Models\IOracleService.cs" />
     <Compile Include="Models\IPostgresService.cs" />
+    <Compile Include="Models\OracleProcStockUnit.cs" />
     <Compile Include="Models\OracleService.cs" />
     <Compile Include="Models\PostgresService.cs" />
     <Compile Include="Models\StoredProcedureItem.cs" />
