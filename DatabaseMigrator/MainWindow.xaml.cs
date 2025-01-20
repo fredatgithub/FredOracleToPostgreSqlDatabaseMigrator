@@ -39,7 +39,6 @@ namespace DatabaseMigrator
     public MainWindow()
     {
       InitializeComponent();
-      InitializeServices();
 
       // Wire up button click events
       btnTestOracle.Click += BtnTestOracle_Click;
@@ -71,7 +70,8 @@ namespace DatabaseMigrator
       LoadCredentials();
       LoadLogs();
 
-      // Initialize other components
+      // Initialize services after credentials are loaded
+      InitializeServices();
     }
 
     private void InitializeServices()
@@ -160,7 +160,7 @@ namespace DatabaseMigrator
           throw new ArgumentException("Oracle credentials are not configured.");
         }
 
-        // Format : "Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=XE)));User Id=system;Password=oracle"
+        // Format : "Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=XE)));User Id=system;Password=toto"
         builder.DataSource = $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={txtOracleServer.Text})(PORT={txtOraclePort.Text}))(CONNECT_DATA=(SERVICE_NAME={txtOracleServiceName.Text})))";
         builder.UserID = credentials.Username;
         builder.Password = credentials.Password;
