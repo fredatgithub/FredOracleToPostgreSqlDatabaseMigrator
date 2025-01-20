@@ -1167,9 +1167,9 @@ namespace DatabaseMigrator
                 insertCmd.ExecuteNonQuery();
                 insertedRows.Add(rowData);
               }
-              catch (Exception ex)
+              catch (Exception exception)
               {
-                LogMessage($"Error inserting row in {targetTable.TableName}: {ex.Message}");
+                LogMessage($"Error inserting row in {targetTable.TableName}: {exception.Message}");
                 throw;
               }
             }
@@ -1246,7 +1246,7 @@ namespace DatabaseMigrator
             // Réactiver chaque contrainte de clé étrangère
             foreach (var constraint in constraints)
             {
-                using (var alterCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} ALTER CONSTRAINT \"{constraint}\" IMMEDIATE", targetConnection))
+                using (var alterCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} VALIDATE CONSTRAINT \"{constraint}\"", targetConnection))
                 {
                     alterCmd.ExecuteNonQuery();
                 }
@@ -1288,7 +1288,7 @@ namespace DatabaseMigrator
                     // Réactiver chaque contrainte de clé étrangère
                     foreach (var constraint in constraints)
                     {
-                        using (var alterCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} ALTER CONSTRAINT \"{constraint}\" IMMEDIATE", targetConnection))
+                        using (var alterCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} VALIDATE CONSTRAINT \"{constraint}\"", targetConnection))
                         {
                             alterCmd.ExecuteNonQuery();
                         }
