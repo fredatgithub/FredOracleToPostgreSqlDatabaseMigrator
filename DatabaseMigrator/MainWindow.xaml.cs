@@ -1238,10 +1238,6 @@ namespace DatabaseMigrator
           JOIN information_schema.key_column_usage kcu 
               ON tc.constraint_name = kcu.constraint_name
               AND kcu.table_schema = tc.table_schema
-          JOIN information_schema.constraint_column_usage ccu
-              ON ccu.constraint_name = tc.constraint_name
-              AND ccu.table_schema = tc.table_schema
-              AND ccu.table_name = tc.table_name
           WHERE tc.constraint_type = 'FOREIGN KEY'
               AND tc.table_schema = @schema
               AND tc.table_name = @tablename", targetConnection))
@@ -1584,6 +1580,7 @@ namespace DatabaseMigrator
 
         SetButtonSuccess(btnLoadOracleStoredProcs);
         UpdateOracleStoredProcsSelectedCount();
+        CompareStoredProcedures();
         loadingWindow.Close();
       }
       catch (Exception ex)
@@ -1686,6 +1683,61 @@ namespace DatabaseMigrator
       UpdatePostgresStoredProcsSelectedCount();
     }
 
+    private void CompareStoredProcedures()
+    {
+      var oracleProcs = lstOracleStoredProcs.Items.Cast<ListBoxItem>();
+      var postgresProcs = lstPostgresStoredProcs.Items.Cast<ListBoxItem>();
+
+      // Reset backgrounds
+      foreach (ListBoxItem item in lstOracleStoredProcs.Items)
+      {
+        item.Background = null;
+      }
+      foreach (ListBoxItem item in lstPostgresStoredProcs.Items)
+      {
+        item.Background = null;
+      }
+
+      // Compare procedures
+      foreach (var oracleItem in oracleProcs)
+      {
+        var oracleStackPanel = (StackPanel)oracleItem.Content;
+        var oracleName = ((TextBlock)oracleStackPanel.Children[1]).Text.ToLower();
+        if (oracleStackPanel.Children.Count >= 3)
+        {
+          oracleName += ((TextBlock)oracleStackPanel.Children[2]).Text.ToLower();
+        }
+        
+        var postgresItem = postgresProcs.FirstOrDefault(p => 
+        {
+          var stackPanel = (StackPanel)p.Content;
+          var name = ((TextBlock)stackPanel.Children[1]).Text.ToLower();
+          var test = name.ToLower() == oracleName.ToLower();
+          return name.Equals(oracleName, StringComparison.CurrentCultureIgnoreCase);
+        });
+
+        if (postgresItem != null)
+        {
+          var color = new SolidColorBrush(Colors.LightGreen);
+          oracleItem.Background = color;
+          postgresItem.Background = color;
+        }
+        else
+        {
+          oracleItem.Background = new SolidColorBrush(Colors.LightPink);
+        }
+      }
+
+      // Mark PostgreSQL procedures that don't exist in Oracle
+      foreach (var postgresItem in postgresProcs)
+      {
+        if (postgresItem.Background == null)
+        {
+          postgresItem.Background = new SolidColorBrush(Colors.LightPink);
+        }
+      }
+    }
+
     private async Task MigrateStoredProcedure(string procedureName)
     {
       OracleConnection sourceConnection = null;
@@ -1701,16 +1753,16 @@ namespace DatabaseMigrator
 
         var schema = txtPostgresSchema.Text.ToLower();
 
-        // Récupérer le code source de la procédure Oracle
+        // Get source code for the Oracle procedure
         string oracleSource = await GetOracleProcedureSource(procedureName, sourceConnection);
-        
-        // Convertir le code Oracle en PostgreSQL
+
+        // Convert Oracle code to PostgreSQL code 
         string postgresSource = ConvertOracleToPostgresProcedure(oracleSource, procedureName, schema);
         
-        // Supprimer la procédure si elle existe déjà
+        // Delete the procedure if it already exist
         await DropExistingProcedure(procedureName, targetConnection, schema);
         
-        // Créer la nouvelle procédure
+        // Create the new procedure
         using (var createCmd = new NpgsqlCommand(postgresSource, targetConnection))
         {
           await createCmd.ExecuteNonQueryAsync();
@@ -1740,7 +1792,8 @@ namespace DatabaseMigrator
           {
             await targetConnection.CloseAsync();
           }
-          targetConnection.Dispose();
+
+          await targetConnection.DisposeAsync();
         }
       }
     }
@@ -1940,6 +1993,7 @@ namespace DatabaseMigrator
 
         SetButtonSuccess(btnLoadPostgresStoredProcs);
         UpdatePostgresStoredProcsSelectedCount();
+        CompareStoredProcedures();
       }
       catch (Exception exception)
       {
