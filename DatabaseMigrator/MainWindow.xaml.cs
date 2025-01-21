@@ -1494,24 +1494,20 @@ namespace DatabaseMigrator
 
     private void UpdateOracleStoredProcsSelectedCount()
     {
-      if (lstOracleStoredProcs.ItemsSource != null)
-      {
-        var procedures = lstOracleStoredProcs.ItemsSource.Cast<StoredProcedureItem>();
-        var selectedCount = procedures.Count(p => p.IsSelected);
-        txtOracleSelectedStoredProcsCount.Text = selectedCount.ToString();
-        txtOracleStoredProcsLabel.Text = $" stored procedure{StringHelper.Plural(selectedCount)}";
-      }
+      var selectedCount = lstOracleStoredProcs.Items.Cast<ListBoxItem>()
+        .Count(item => ((CheckBox)((StackPanel)item.Content).Children[0]).IsChecked == true);
+      
+      txtOracleSelectedStoredProcsCount.Text = selectedCount.ToString();
+      txtOracleStoredProcsLabel.Text = $" stored procedure{StringHelper.Plural(selectedCount)}";
     }
 
     private void UpdatePostgresStoredProcsSelectedCount()
     {
-      if (lstPostgresStoredProcs.ItemsSource != null)
-      {
-        var procedures = lstPostgresStoredProcs.ItemsSource.Cast<StoredProcedureItem>();
-        var selectedCount = procedures.Count(p => p.IsSelected);
-        txtPostgresSelectedStoredProcsCount.Text = selectedCount.ToString();
-        txtPostgresStoredProcsLabel.Text = $" stored procedure{StringHelper.Plural(selectedCount)}";
-      }
+      var selectedCount = lstPostgresStoredProcs.Items.Cast<ListBoxItem>()
+        .Count(item => ((CheckBox)((StackPanel)item.Content).Children[0]).IsChecked == true);
+      
+      txtPostgresSelectedStoredProcsCount.Text = selectedCount.ToString();
+      txtPostgresStoredProcsLabel.Text = $" stored procedure{StringHelper.Plural(selectedCount)}";
     }
 
     private async void BtnLoadOracleStoredProcs_Click(object sender, RoutedEventArgs e)
@@ -1541,6 +1537,8 @@ namespace DatabaseMigrator
           };
 
           var checkBox = new CheckBox { Margin = new Thickness(5, 0, 5, 0) };
+          checkBox.Checked += (s, evt) => UpdateOracleStoredProcsSelectedCount();
+          checkBox.Unchecked += (s, evt) => UpdateOracleStoredProcsSelectedCount();
           var nameBlock = new TextBlock { Text = proc.Name };
 
           ((StackPanel)item.Content).Children.Add(checkBox);
@@ -1553,6 +1551,8 @@ namespace DatabaseMigrator
               var newItem = new ListBoxItem();
               var newStackPanel = new StackPanel { Orientation = Orientation.Horizontal };
               var checkBox2 = new CheckBox { Margin = new Thickness(5, 0, 5, 0) };
+              checkBox2.Checked += (s, evt) => UpdateOracleStoredProcsSelectedCount();
+              checkBox2.Unchecked += (s, evt) => UpdateOracleStoredProcsSelectedCount();
               var packageBlock = new TextBlock
               {
                 Text = proc.Name,
@@ -1590,21 +1590,6 @@ namespace DatabaseMigrator
       }
     }
 
-    private Brush GetColorForType(string type)
-    {
-      switch (type)
-      {
-        case "PACKAGE":
-          return Brushes.DarkBlue;
-        case "FUNCTION":
-          return Brushes.DarkGreen;
-        case "PROCEDURE":
-          return Brushes.DarkMagenta;
-        default:
-          return Brushes.Black;
-      }
-    }
-
     private void FilterOracleStoredProcs()
     {
       if (lstOracleStoredProcs.Items.Count == 0) return;
@@ -1630,7 +1615,7 @@ namespace DatabaseMigrator
       {
         var selectedProcs = lstOracleStoredProcs.Items
           .Cast<ListBoxItem>()
-          .Where(item => item.IsSelected)
+          .Where(item => ((CheckBox)((StackPanel)item.Content).Children[0]).IsChecked == true)
           .ToList();
 
         if (!selectedProcs.Any())
@@ -1983,6 +1968,8 @@ namespace DatabaseMigrator
           };
 
           var checkBox = new CheckBox { Margin = new Thickness(5, 0, 5, 0) };
+          checkBox.Checked += (s, evt) => UpdatePostgresStoredProcsSelectedCount();
+          checkBox.Unchecked += (s, evt) => UpdatePostgresStoredProcsSelectedCount();
           var nameBlock = new TextBlock { Text = proc };
 
           ((StackPanel)item.Content).Children.Add(checkBox);
