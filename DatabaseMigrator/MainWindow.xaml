@@ -237,7 +237,6 @@
                   </Style>
                 </ListView.ItemContainerStyle>
               </ListView>
-
               <StackPanel Grid.Row="2" Orientation="Horizontal">
                 <TextBlock Text="Selected: " VerticalAlignment="Center"/>
                 <TextBlock Name="txtPostgresSelectedCount" Text="0" VerticalAlignment="Center"/>
@@ -294,6 +293,7 @@
                   </DataTemplate>
                 </ListBox.ItemTemplate>
               </ListBox>
+              
             </Grid>
           </GroupBox>
 
@@ -339,7 +339,7 @@
               </ListBox>
             </Grid>
           </GroupBox>
-
+          
           <Button Name="btnMigrateStoredProcs"
                   Content="Migrate Selected Stored Procedures ➔"
                   Padding="10,5"

@@ -61,13 +61,12 @@ namespace DatabaseMigrator
                  END AS PACKAGE_PROCEDURES
           FROM ALL_OBJECTS p
           WHERE OWNER = :owner 
-          AND OBJECT_TYPE IN ('PROCEDURE', 'FUNCTION', 'PACKAGE')
+          AND OBJECT_TYPE IN ('PROCEDURE', 'PACKAGE')
           AND STATUS = 'VALID'
           ORDER BY 
             CASE OBJECT_TYPE 
               WHEN 'PACKAGE' THEN 1
               WHEN 'PROCEDURE' THEN 2
-              WHEN 'FUNCTION' THEN 3
               ELSE 4
             END,
             OBJECT_NAME";

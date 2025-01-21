@@ -61,10 +61,6 @@ namespace DatabaseMigrator
       lstOracleStoredProcs.SelectionChanged += LstOracleStoredProcs_SelectionChanged;
       lstPostgresStoredProcs.SelectionChanged += LstPostgresStoredProcs_SelectionChanged;
 
-      // Wire up checkbox checked events
-      chkSaveOracle.Checked += ChkSaveOracle_Checked;
-      chkSavePostgres.Checked += ChkSavePostgres_Checked;
-
       LoadProfilCombobox();
       LoadLastProfilUsed();
       LoadCredentials();
@@ -74,7 +70,7 @@ namespace DatabaseMigrator
       InitializeServices();
     }
 
-    private void InitializeServices()
+    private async void InitializeServices()
     {
       try
       {
@@ -142,9 +138,9 @@ namespace DatabaseMigrator
 
         return builder.ConnectionString;
       }
-      catch (Exception ex)
+      catch (Exception exception)
       {
-        throw new ArgumentException($"Error building PostgreSQL connection string: {ex.Message}");
+        throw new ArgumentException($"Error building PostgreSQL connection string: {exception.Message}");
       }
     }
 
@@ -170,10 +166,12 @@ namespace DatabaseMigrator
         {
           throw new ArgumentException("Oracle host is required.");
         }
+
         if (string.IsNullOrEmpty(txtOracleServiceName.Text))
         {
           throw new ArgumentException("Oracle service name is required.");
         }
+        
         if (!int.TryParse(txtOraclePort.Text, out int port) || port <= 0)
         {
           throw new ArgumentException("Invalid Oracle port number.");
@@ -181,9 +179,9 @@ namespace DatabaseMigrator
 
         return builder.ConnectionString;
       }
-      catch (Exception ex)
+      catch (Exception exception)
       {
-        throw new ArgumentException($"Error building Oracle connection string: {ex.Message}");
+        throw new ArgumentException($"Error building Oracle connection string: {exception.Message}");
       }
     }
 
@@ -1520,15 +1518,24 @@ namespace DatabaseMigrator
       }
     }
 
-#pragma warning disable EC84 // Avoid async void methods
     private async void BtnLoadOracleStoredProcs_Click(object sender, RoutedEventArgs e)
-#pragma warning restore EC84 // Avoid async void methods
     {
       try
       {
+        var loadingWindow = new LoadingWindow(this) { Title = "Loading Stored Procedures..." };
+        loadingWindow.Show();
+        
         ResetButtonColor(btnLoadOracleStoredProcs);
-        var storedProcs = _oracleService.GetStoredProcedures();
         lstOracleStoredProcs.Items.Clear();
+
+        InitializeServices();
+        if (_oracleService == null)
+        {
+          loadingWindow.Close();
+          return;
+        }
+
+        var storedProcs = await Task.Run(() => _oracleService.GetStoredProcedures());
 
         foreach (var proc in storedProcs)
         {
@@ -1538,42 +1545,51 @@ namespace DatabaseMigrator
           };
 
           var checkBox = new CheckBox { Margin = new Thickness(5, 0, 5, 0) };
-          var typeBlock = new TextBlock
-          {
-            Text = $"[{proc.Type}]",
-            Margin = new Thickness(5, 0, 5, 0),
-            Foreground = GetColorForType(proc.Type)
-          };
-
           var nameBlock = new TextBlock { Text = proc.Name };
 
           ((StackPanel)item.Content).Children.Add(checkBox);
-          ((StackPanel)item.Content).Children.Add(typeBlock);
           ((StackPanel)item.Content).Children.Add(nameBlock);
 
           if (proc.Type == "PACKAGE" && proc.PackageProcedures?.Any() == true)
           {
-            var proceduresBlock = new TextBlock
+            for (int i = 0; i < proc.PackageProcedures.Count; i++)
             {
-              Text = $" ({proc.PackageProcedures.Count} procedures)",
-              Margin = new Thickness(5, 0, 0, 0),
-              Foreground = Brushes.Gray
-            };
+              var newItem = new ListBoxItem();
+              var newStackPanel = new StackPanel { Orientation = Orientation.Horizontal };
+              var checkBox2 = new CheckBox { Margin = new Thickness(5, 0, 5, 0) };
+              var packageBlock = new TextBlock
+              {
+                Text = proc.Name,
+                Margin = new Thickness(5, 0, 0, 0),
+              };
 
-            ((StackPanel)item.Content).Children.Add(proceduresBlock);
+              var proceduresBlock = new TextBlock
+              {
+                Text = $"_{proc.PackageProcedures[i]}",
+                Margin = new Thickness(0, 0, 5, 0),
+              };
+
+              newStackPanel.Children.Add(checkBox2);
+              newStackPanel.Children.Add(packageBlock);
+              newStackPanel.Children.Add(proceduresBlock);
+              newItem.Content = newStackPanel;
+              lstOracleStoredProcs.Items.Add(newItem);
+            }
           }
-
-          lstOracleStoredProcs.Items.Add(item);
+          else
+          {
+            lstOracleStoredProcs.Items.Add(item);
+          }
         }
 
         SetButtonSuccess(btnLoadOracleStoredProcs);
         UpdateOracleStoredProcsSelectedCount();
+        loadingWindow.Close();
       }
-      catch (Exception exception)
+      catch (Exception ex)
       {
+        MessageBox.Show($"Error loading stored procedures: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         SetButtonError(btnLoadOracleStoredProcs);
-        MessageBox.Show($"Error loading Oracle stored procedures: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        LogMessage($"Error loading Oracle stored procedures: {exception.Message}");
       }
     }
 
@@ -1617,9 +1633,7 @@ namespace DatabaseMigrator
       {
         var selectedProcs = lstOracleStoredProcs.Items
           .Cast<ListBoxItem>()
-          .Where(item => item.Content is StackPanel panel && 
-                        panel.Children.OfType<CheckBox>().First().IsChecked == true)
-          .Select(item => item.Tag as OracleProcStockUnit)
+          .Where(item => item.IsSelected)
           .ToList();
 
         if (!selectedProcs.Any())
@@ -1630,17 +1644,7 @@ namespace DatabaseMigrator
 
         foreach (var proc in selectedProcs)
         {
-          if (proc.Type == "PACKAGE")
-          {
-            foreach (var packageProc in proc.PackageProcedures ?? Enumerable.Empty<string>())
-            {
-              MigrateStoredProcedure($"{proc.Name}.{packageProc}");
-            }
-          }
-          else
-          {
-            MigrateStoredProcedure(proc.Name);
-          }
+          MigrateStoredProcedure(proc.Content.ToString());
         }
 
         MessageBox.Show("Migration of selected stored procedures completed.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -1832,20 +1836,23 @@ namespace DatabaseMigrator
 
     private void ChkSavePostgres_Checked(object sender, RoutedEventArgs e)
     {
-      if (chkSavePostgres.IsChecked == true && cboPostgresqlConnectionProfile.SelectedIndex == -1)
-      {
-        MessageBox.Show("You have to select a profile name for the PostgreSQL connection", "No profile chosen", MessageBoxButton.OK, MessageBoxImage.Hand);
-        chkSavePostgres.IsChecked = false;
-      }
     }
 
     private void ChkSaveOracle_Checked(object sender, RoutedEventArgs e)
     {
-      if (chkSaveOracle.IsChecked == true && cboOracleConnectionProfile.SelectedIndex == -1)
+    }
+
+    private void ChkShowOracleStoredProcs_Checked(object sender, RoutedEventArgs e)
+    {
+      if (lstOracleStoredProcs.Items.Count > 0)
       {
-        MessageBox.Show("You have to select a profile name for the Oracle connection", "No profile chosen", MessageBoxButton.OK, MessageBoxImage.Hand);
-        chkSaveOracle.IsChecked = false;
+        lstOracleStoredProcs.Visibility = Visibility.Visible;
       }
+    }
+
+    private void ChkShowOracleStoredProcs_Unchecked(object sender, RoutedEventArgs e)
+    {
+      lstOracleStoredProcs.Visibility = Visibility.Collapsed;
     }
 
     private void BtnLoadOracleConnection_Click(object sender, RoutedEventArgs e)
