@@ -2020,5 +2020,10 @@ namespace DatabaseMigrator
         LogMessage($"Error loading PostgreSQL stored procedures: {exception.Message}");
       }
     }
+
+    private static string GetDepedenciesTableSqlRequest(string schema)
+    {
+      return "SELECT conrelid::regclass AS dependent_table, confrelid::regclass AS referenced_table FROM pg_constraint con JOIN pg_namespace n ON n.oid = con.connamespace JOIN pg_attribute a ON a.attnum = ANY(con.conkey) AND a.attrelid = con.conrelid JOIN pg_attribute af ON af.attnum = ANY(con.confkey) AND af.attrelid = con.confrelid WHERE con.contype = 'f' and n.nspname = '{schema}' ORDER BY referenced_table, dependent_table;".Replace("{schema}", schema);
+    }
   }
 }
