@@ -1,11 +1,3 @@
-using DatabaseMigrator.Models;
-using DatabaseMigrator.Helpers;
-using DatabaseMigrator.Properties;
-using DatabaseMigrator.Views;
-using Newtonsoft.Json;
-using Npgsql;
-using NpgsqlTypes;
-using Oracle.ManagedDataAccess.Client;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -13,14 +5,20 @@ using System.ComponentModel;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Text.RegularExpressions;
-using System.Text;
+using DatabaseMigrator.Helpers;
+using DatabaseMigrator.Models;
+using DatabaseMigrator.Properties;
+using DatabaseMigrator.Views;
+using Newtonsoft.Json;
+using Npgsql;
+using Oracle.ManagedDataAccess.Client;
 
 namespace DatabaseMigrator
 {
@@ -108,6 +106,16 @@ namespace DatabaseMigrator
     {
       try
       {
+        var server = string.Empty;
+        var port = string.Empty;
+        var database = string.Empty;
+        Dispatcher.Invoke(() =>
+        {
+          server = txtPostgresServer.Text;
+          port = txtPostgresPort.Text;
+          database = txtPostgresDatabase.Text;
+        });
+
         var builder = new NpgsqlConnectionStringBuilder();
         var credentials = LoadCredentials(_pgCredentialsFile);
 
@@ -116,22 +124,24 @@ namespace DatabaseMigrator
           throw new ArgumentException("PostgreSQL credentials are not configured.");
         }
 
-        builder.Host = txtPostgresServer.Text;
-        builder.Port = int.Parse(txtPostgresPort.Text);
-        builder.Database = txtPostgresDatabase.Text;
+        builder.Host = server;
+        builder.Port = int.Parse(port);
+        builder.Database = database;
         builder.Username = credentials.Username;
         builder.Password = credentials.Password;
 
         // Vérifier les champs obligatoires
-        if (string.IsNullOrEmpty(builder.Host))
+        if (string.IsNullOrEmpty(server))
         {
           throw new ArgumentException("PostgreSQL host is required.");
         }
-        if (string.IsNullOrEmpty(builder.Database))
+
+        if (string.IsNullOrEmpty(database))
         {
-          throw new ArgumentException("PostgreSQL database name is required.");
+          throw new ArgumentException("PostgreSQL database is required.");
         }
-        if (builder.Port <= 0)
+
+        if (!int.TryParse(port, out int portNumber) || portNumber <= 0)
         {
           throw new ArgumentException("Invalid PostgreSQL port number.");
         }
@@ -148,6 +158,16 @@ namespace DatabaseMigrator
     {
       try
       {
+        var server = string.Empty;
+        var port = string.Empty;
+        var serviceName = string.Empty;
+        Dispatcher.Invoke(() =>
+        {
+          server = txtOracleServer.Text;
+          port = txtOraclePort.Text;
+          serviceName = txtOracleServiceName.Text;
+        });
+
         var builder = new OracleConnectionStringBuilder();
         var credentials = LoadCredentials(_oracleCredentialsFile);
 
@@ -157,22 +177,22 @@ namespace DatabaseMigrator
         }
 
         // Format : "Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=XE)));User Id=system;Password=toto"
-        builder.DataSource = $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={txtOracleServer.Text})(PORT={txtOraclePort.Text}))(CONNECT_DATA=(SERVICE_NAME={txtOracleServiceName.Text})))";
+        builder.DataSource = $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={server})(PORT={port}))(CONNECT_DATA=(SERVICE_NAME={serviceName})))";
         builder.UserID = credentials.Username;
         builder.Password = credentials.Password;
 
-        // Vérifier les champs obligatoires
-        if (string.IsNullOrEmpty(txtOracleServer.Text))
+        // Verify compulsory fields
+        if (string.IsNullOrEmpty(server))
         {
           throw new ArgumentException("Oracle host is required.");
         }
 
-        if (string.IsNullOrEmpty(txtOracleServiceName.Text))
+        if (string.IsNullOrEmpty(serviceName))
         {
           throw new ArgumentException("Oracle service name is required.");
         }
-        
-        if (!int.TryParse(txtOraclePort.Text, out int port) || port <= 0)
+
+        if (!int.TryParse(port, out int portNumber) || portNumber <= 0)
         {
           throw new ArgumentException("Invalid Oracle port number.");
         }
@@ -211,7 +231,7 @@ namespace DatabaseMigrator
       LoadProfileFiles("id_pg-*.txt", cboPostgresConnectionProfileFile);
     }
 
-    private void LoadProfileFiles(string pattern, ComboBox comboBox)
+    private static void LoadProfileFiles(string pattern, ComboBox comboBox)
     {
       var profils = GetProfilFile(pattern);
       profils = GetProfilNameFromFilename(profils);
@@ -491,7 +511,9 @@ namespace DatabaseMigrator
     private void CompareTables()
     {
       if (lstOracleTables.ItemsSource == null || lstPostgresTables.ItemsSource == null)
+      {
         return;
+      }
 
       var oracleTables = lstOracleTables.ItemsSource.Cast<TableInfo>();
       var postgresTables = lstPostgresTables.ItemsSource.Cast<TableInfo>();
@@ -518,7 +540,7 @@ namespace DatabaseMigrator
       }
     }
 
-    private DbCredentials LoadCredentials(string filename)
+    private static DbCredentials LoadCredentials(string filename)
     {
       try
       {
@@ -924,7 +946,7 @@ namespace DatabaseMigrator
       var processedTables = new HashSet<string>();
       string schema = string.Empty;
 
-      // Récupérer le schéma de manière thread-safe
+      // Get schema in a thread-safe manner
       Application.Current.Dispatcher.Invoke(() =>
       {
         schema = txtPostgresSchema.Text;
@@ -941,7 +963,7 @@ namespace DatabaseMigrator
         sourceConnection.Open();
         targetConnection.Open();
 
-        // Obtenir les dépendances pour chaque table
+        // Get dependencies for each table
         foreach (var table in tables)
         {
           using (var cmd = targetConnection.CreateCommand())
@@ -1008,26 +1030,21 @@ namespace DatabaseMigrator
       }
       finally
       {
-        if (sourceConnection != null)
-        {
-          sourceConnection.Dispose();
-        }
-
-        if (targetConnection != null)
-        {
-          targetConnection.Dispose();
-        }
+        sourceConnection?.Dispose();
+        targetConnection?.Dispose();
       }
 
       // Fonction récursive pour ajouter les tables dans le bon ordre
       void ProcessTable(string tableName, HashSet<string> processingStack = null)
       {
         if (processedTables.Contains(tableName))
+        {
           return;
+        }
 
         processingStack = processingStack ?? new HashSet<string>();
 
-        // Détecter les dépendances circulaires
+        // Detect circular dependencies
         if (processingStack.Contains(tableName))
         {
           LogMessage($"Warning: Circular dependency detected for table {tableName}");
@@ -1063,13 +1080,13 @@ namespace DatabaseMigrator
         }
       }
 
-      // Ajouter toutes les tables dans l'ordre
+      // Add all the tables in order
       foreach (var table in tables)
       {
         ProcessTable(table.TableName);
       }
 
-      // Afficher l'ordre de migration final
+      // Display the final migration order
       var migrationOrder = string.Join(" -> ", orderedTables.Select(t => t.TableName));
       LogMessage($"Migration order: {migrationOrder}");
 
@@ -1099,26 +1116,26 @@ namespace DatabaseMigrator
             AND tc.table_schema = @schema
             AND tc.table_name = @tablename", targetConnection))
         {
-            disableCmd.Parameters.AddWithValue("schema", schema);
-            disableCmd.Parameters.AddWithValue("tablename", targetTable.TableName.ToLower());
+          disableCmd.Parameters.AddWithValue("schema", schema);
+          disableCmd.Parameters.AddWithValue("tablename", targetTable.TableName.ToLower());
 
-            var constraints = new List<string>();
-            using (var reader = disableCmd.ExecuteReader())
+          var constraints = new List<string>();
+          using (var reader = disableCmd.ExecuteReader())
+          {
+            while (reader.Read())
             {
-                while (reader.Read())
-                {
-                    constraints.Add(reader.GetString(0));
-                }
+              constraints.Add(reader.GetString(0));
             }
+          }
 
-            // Désactiver chaque contrainte de clé étrangère
-            foreach (var constraint in constraints)
+          // Désactiver chaque contrainte de clé étrangère
+          foreach (var constraint in constraints)
+          {
+            using (var alterCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} ALTER CONSTRAINT \"{constraint}\" DEFERRABLE INITIALLY DEFERRED", targetConnection))
             {
-                using (var alterCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} ALTER CONSTRAINT \"{constraint}\" DEFERRABLE INITIALLY DEFERRED", targetConnection))
-                {
-                    alterCmd.ExecuteNonQuery();
-                }
+              alterCmd.ExecuteNonQuery();
             }
+          }
         }
 
         // Vider la table cible
@@ -1186,7 +1203,7 @@ namespace DatabaseMigrator
               {
                 var columnId = reader.GetInt32(6);
                 LogMessage($"Warning: Duplicate column {columnName} found in table {targetTable.TableName} at position {columnId}");
-                
+
                 // Get the table's constraints to understand the relationships
                 using (var constraintCmd = new OracleCommand($@"
                     SELECT a.constraint_name, a.constraint_type, a.r_constraint_name,
@@ -1196,16 +1213,16 @@ namespace DatabaseMigrator
                     WHERE a.table_name = '{targetTable.TableName}'
                     AND b.column_name = '{columnName}'", sourceConnection))
                 {
-                    using (var constraintReader = constraintCmd.ExecuteReader())
+                  using (var constraintReader = constraintCmd.ExecuteReader())
+                  {
+                    while (constraintReader.Read())
                     {
-                        while (constraintReader.Read())
-                        {
-                            var constraintInfo = $"Constraint: {constraintReader.GetString(0)}, " +
-                                               $"Type: {constraintReader.GetString(1)}, " +
-                                               $"Position: {constraintReader.GetInt32(4)}";
-                            LogMessage($"Related constraint for duplicate column {columnName}: {constraintInfo}");
-                        }
+                      var constraintInfo = $"Constraint: {constraintReader.GetString(0)}, " +
+                                         $"Type: {constraintReader.GetString(1)}, " +
+                                         $"Position: {constraintReader.GetInt32(4)}";
+                      LogMessage($"Related constraint for duplicate column {columnName}: {constraintInfo}");
                     }
+                  }
                 }
               }
             }
@@ -1216,7 +1233,7 @@ namespace DatabaseMigrator
         LogMessage($"Table {targetTable.TableName} structure:");
         foreach (var col in columns)
         {
-            LogMessage($"Column: {col.ColumnName}, Type: {col.DataType}, Nullable: {col.IsNullable}");
+          LogMessage($"Column: {col.ColumnName}, Type: {col.DataType}, Nullable: {col.IsNullable}");
         }
 
         // Construire la requête de sélection
@@ -1303,11 +1320,11 @@ namespace DatabaseMigrator
                 details += $"Detail: {pgEx.Detail}\n";
                 details += "This usually means the referenced record in the parent table doesn't exist.";
                 LogMessage(details);
-                
+
                 // Log the data that caused the violation
                 var rowDataStr = string.Join(", ", rowData.Select(kv => $"{kv.Key}={kv.Value}"));
                 LogMessage($"Row data that caused violation: {rowDataStr}");
-                
+
                 throw;
               }
               catch (Exception exception)
@@ -1374,32 +1391,32 @@ namespace DatabaseMigrator
             AND tc.table_schema = @schema
             AND tc.table_name = @tablename", targetConnection))
         {
-            enableCmd.Parameters.AddWithValue("schema", schema);
-            enableCmd.Parameters.AddWithValue("tablename", targetTable.TableName.ToLower());
+          enableCmd.Parameters.AddWithValue("schema", schema);
+          enableCmd.Parameters.AddWithValue("tablename", targetTable.TableName.ToLower());
 
-            var constraints = new List<string>();
-            using (var reader = enableCmd.ExecuteReader())
+          var constraints = new List<string>();
+          using (var reader = enableCmd.ExecuteReader())
+          {
+            while (reader.Read())
             {
-                while (reader.Read())
-                {
-                    constraints.Add(reader.GetString(0));
-                }
+              constraints.Add(reader.GetString(0));
             }
+          }
 
-            // Réactiver chaque contrainte de clé étrangère
-            foreach (var constraint in constraints)
+          // Réactiver chaque contrainte de clé étrangère
+          foreach (var constraint in constraints)
+          {
+            using (var alterCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} VALIDATE CONSTRAINT \"{constraint}\"", targetConnection))
             {
-                using (var alterCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} VALIDATE CONSTRAINT \"{constraint}\"", targetConnection))
-                {
-                    alterCmd.ExecuteNonQuery();
-                }
+              alterCmd.ExecuteNonQuery();
             }
+          }
         }
 
         // Réactiver les triggers utilisateur
         using (var enableTriggersCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} ENABLE TRIGGER USER", targetConnection))
         {
-            enableTriggersCmd.ExecuteNonQuery();
+          enableTriggersCmd.ExecuteNonQuery();
         }
       }
       catch (Exception exception)
@@ -1407,44 +1424,47 @@ namespace DatabaseMigrator
         // S'assurer de réactiver les contraintes même en cas d'erreur
         if (targetConnection != null && targetConnection.State == ConnectionState.Open)
         {
-            try
-            {
-                using (var enableCmd = new NpgsqlCommand($@"
+          try
+          {
+            using (var enableCmd = new NpgsqlCommand($@"
                     SELECT tc.constraint_name
                     FROM information_schema.table_constraints tc
                     WHERE tc.constraint_type = 'FOREIGN KEY'
                     AND tc.table_schema = @schema
                     AND tc.table_name = @tablename", targetConnection))
+            {
+              enableCmd.Parameters.AddWithValue("schema", schema);
+              enableCmd.Parameters.AddWithValue("tablename", targetTable.TableName.ToLower());
+
+              var constraints = new List<string>();
+              using (var reader = enableCmd.ExecuteReader())
+              {
+                while (reader.Read())
                 {
-                    enableCmd.Parameters.AddWithValue("schema", schema);
-                    enableCmd.Parameters.AddWithValue("tablename", targetTable.TableName.ToLower());
-
-                    var constraints = new List<string>();
-                    using (var reader = enableCmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            constraints.Add(reader.GetString(0));
-                        }
-                    }
-
-                    // Réactiver chaque contrainte de clé étrangère
-                    foreach (var constraint in constraints)
-                    {
-                        using (var alterCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} VALIDATE CONSTRAINT \"{constraint}\"", targetConnection))
-                        {
-                            alterCmd.ExecuteNonQuery();
-                        }
-                    }
+                  constraints.Add(reader.GetString(0));
                 }
+              }
 
-                // Réactiver les triggers utilisateur
-                using (var enableTriggersCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} ENABLE TRIGGER USER", targetConnection))
+              // Réactiver chaque contrainte de clé étrangère
+              foreach (var constraint in constraints)
+              {
+                using (var alterCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} VALIDATE CONSTRAINT \"{constraint}\"", targetConnection))
                 {
-                    enableTriggersCmd.ExecuteNonQuery();
+                  alterCmd.ExecuteNonQuery();
                 }
+              }
             }
-            catch { } // Ignore errors when reactivating triggers
+
+            // Réactiver les triggers utilisateur
+            using (var enableTriggersCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} ENABLE TRIGGER USER", targetConnection))
+            {
+              enableTriggersCmd.ExecuteNonQuery();
+            }
+          }
+          catch
+          {
+            // Ignore errors when reactivating triggers
+          }
         }
 
         LogMessage($"Error copying table {targetTable.TableName}: {exception.Message}");
@@ -1458,6 +1478,7 @@ namespace DatabaseMigrator
           {
             sourceConnection.Close();
           }
+
           sourceConnection.Dispose();
         }
 
@@ -1467,6 +1488,7 @@ namespace DatabaseMigrator
           {
             targetConnection.Close();
           }
+
           targetConnection.Dispose();
         }
       }
@@ -1496,7 +1518,7 @@ namespace DatabaseMigrator
     {
       var selectedCount = lstOracleStoredProcs.Items.Cast<ListBoxItem>()
         .Count(item => ((CheckBox)((StackPanel)item.Content).Children[0]).IsChecked == true);
-      
+
       txtOracleSelectedStoredProcsCount.Text = selectedCount.ToString();
       txtOracleStoredProcsLabel.Text = $" stored procedure{StringHelper.Plural(selectedCount)}";
     }
@@ -1505,7 +1527,7 @@ namespace DatabaseMigrator
     {
       var selectedCount = lstPostgresStoredProcs.Items.Cast<ListBoxItem>()
         .Count(item => ((CheckBox)((StackPanel)item.Content).Children[0]).IsChecked == true);
-      
+
       txtPostgresSelectedStoredProcsCount.Text = selectedCount.ToString();
       txtPostgresStoredProcsLabel.Text = $" stored procedure{StringHelper.Plural(selectedCount)}";
     }
@@ -1516,7 +1538,7 @@ namespace DatabaseMigrator
       {
         var loadingWindow = new LoadingWindow(this) { Title = "Loading Stored Procedures..." };
         loadingWindow.Show();
-        
+
         ResetButtonColor(btnLoadOracleStoredProcs);
         lstOracleStoredProcs.Items.Clear();
 
@@ -1592,7 +1614,10 @@ namespace DatabaseMigrator
 
     private void FilterOracleStoredProcs()
     {
-      if (lstOracleStoredProcs.Items.Count == 0) return;
+      if (lstOracleStoredProcs.Items.Count == 0)
+      {
+        return;
+      }
 
       var view = CollectionViewSource.GetDefaultView(lstOracleStoredProcs.Items);
       var searchText = txtOracleStoredProcsSearch.Text.ToLower();
@@ -1650,7 +1675,10 @@ namespace DatabaseMigrator
 
     private void FilterPostgresStoredProcs()
     {
-      if (lstPostgresStoredProcs.ItemsSource == null) return;
+      if (lstPostgresStoredProcs.ItemsSource == null)
+      {
+        return;
+      }
 
       var searchText = txtPostgresStoredProcsSearch.Text.ToLower();
       var procedures = lstPostgresStoredProcs.ItemsSource.Cast<StoredProcedureItem>().ToList();
@@ -1692,8 +1720,8 @@ namespace DatabaseMigrator
         {
           oracleName += ((TextBlock)oracleStackPanel.Children[2]).Text.ToLower();
         }
-        
-        var postgresItem = postgresProcs.FirstOrDefault(p => 
+
+        var postgresItem = postgresProcs.FirstOrDefault(p =>
         {
           var stackPanel = (StackPanel)p.Content;
           var name = ((TextBlock)stackPanel.Children[1]).Text.ToLower();
@@ -1743,10 +1771,10 @@ namespace DatabaseMigrator
 
         // Convert Oracle code to PostgreSQL code 
         string postgresSource = ConvertOracleToPostgresProcedure(oracleSource, procedureName, schema);
-        
+
         // Delete the procedure if it already exist
         await DropExistingProcedure(procedureName, targetConnection, schema);
-        
+
         // Create the new procedure
         using (var createCmd = new NpgsqlCommand(postgresSource, targetConnection))
         {
@@ -1795,7 +1823,7 @@ namespace DatabaseMigrator
       using (var cmd = new OracleCommand(query, connection))
       {
         cmd.Parameters.Add(new OracleParameter("procName", procedureName.Contains(".") ? procedureName.Split('.')[0] : procedureName));
-        
+
         var source = new StringBuilder();
         using (var reader = await cmd.ExecuteReaderAsync())
         {
@@ -1845,7 +1873,7 @@ namespace DatabaseMigrator
         var parameters = match.Groups[1].Value;
         // Convertir les paramètres Oracle en format PostgreSQL
         parameters = ConvertParameters(parameters);
-        
+
         postgresSource = $"CREATE OR REPLACE PROCEDURE {schema}.{simpleName.ToLower()}({parameters})\nLANGUAGE plpgsql\nAS $$\n{postgresSource}\n$$;";
       }
 
@@ -1854,7 +1882,10 @@ namespace DatabaseMigrator
 
     private string ConvertParameters(string parameters)
     {
-      if (string.IsNullOrWhiteSpace(parameters)) return "";
+      if (string.IsNullOrWhiteSpace(parameters))
+      {
+        return "";
+      }
 
       var paramList = parameters.Split(',')
           .Select(p => p.Trim())
