@@ -1445,7 +1445,7 @@ namespace DatabaseMigrator
                 }
               }
 
-              // Réactiver chaque contrainte de clé étrangère
+              // Reactivate each foreign key constraint
               foreach (var constraint in constraints)
               {
                 using (var alterCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} VALIDATE CONSTRAINT \"{constraint}\"", targetConnection))
@@ -1455,7 +1455,7 @@ namespace DatabaseMigrator
               }
             }
 
-            // Réactiver les triggers utilisateur
+            // Enable user triggers
             using (var enableTriggersCmd = new NpgsqlCommand($"ALTER TABLE {schema}.{targetTable.TableName.ToLower()} ENABLE TRIGGER USER", targetConnection))
             {
               enableTriggersCmd.ExecuteNonQuery();
