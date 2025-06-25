@@ -1279,8 +1279,7 @@ namespace DatabaseMigrator
                          VALUES ({string.Join(", ", columns.Select(c =>
                              c.ColumnName.Equals(autoReferenceColumn, StringComparison.OrdinalIgnoreCase)
                              ? "NULL"
-                             : $"@{c.ColumnName.ToLower()}"))})"
-                         ;
+                             : $"@{c.ColumnName.ToLower()}"))})";
         }
 
         // Lire les données source
@@ -1313,11 +1312,11 @@ namespace DatabaseMigrator
                 insertCmd.ExecuteNonQuery();
                 insertedRows.Add(rowData);
               }
-              catch (Npgsql.PostgresException pgEx) when (pgEx.SqlState == "23503") // Foreign key violation
+              catch (PostgresException pgException) when (pgException.SqlState == "23503") // Foreign key violation
               {
                 var details = $"Foreign key violation in table {targetTable.TableName}:\n";
-                details += $"Error: {pgEx.Message}\n";
-                details += $"Detail: {pgEx.Detail}\n";
+                details += $"Error: {pgException.Message}\n";
+                details += $"Detail: {pgException.Detail}\n";
                 details += "This usually means the referenced record in the parent table doesn't exist.";
                 LogMessage(details);
 
@@ -1605,9 +1604,9 @@ namespace DatabaseMigrator
         CompareStoredProcedures();
         loadingWindow.Close();
       }
-      catch (Exception ex)
+      catch (Exception exception)
       {
-        MessageBox.Show($"Error loading stored procedures: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        MessageBox.Show($"Error loading stored procedures: {exception.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         SetButtonError(btnLoadOracleStoredProcs);
       }
     }
@@ -1630,6 +1629,7 @@ namespace DatabaseMigrator
           var matchProcedures = proc.PackageProcedures?.Any(p => p.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0) ?? false;
           return matchName || matchType || matchProcedures;
         }
+
         return false;
       };
     }
@@ -1725,7 +1725,6 @@ namespace DatabaseMigrator
         {
           var stackPanel = (StackPanel)p.Content;
           var name = ((TextBlock)stackPanel.Children[1]).Text.ToLower();
-          var test = name.ToLower() == oracleName.ToLower();
           return name.Equals(oracleName, StringComparison.CurrentCultureIgnoreCase);
         });
 
