@@ -627,7 +627,12 @@ namespace DatabaseMigrator
           var encryptedOracle = EncryptionHelper.Encrypt(jsonOracle);
           File.WriteAllText(GetSelectedProfilforOracle(cboOracleConnectionProfile.SelectedValue.ToString()), encryptedOracle);
           Settings.Default.OracleSelectedProfil = cboOracleConnectionProfile.SelectedValue.ToString();
-          Settings.Default.Save();
+          
+          // Sauvegarder la sélection du profil de chargement Oracle
+          if (cboOracleLConnectionProfileFile.SelectedIndex != -1)
+          {
+            Settings.Default.OracleLConnectionProfileFile = cboOracleLConnectionProfileFile.SelectedValue.ToString();
+          }
         }
 
         // Save PostgreSQL ID
@@ -647,8 +652,16 @@ namespace DatabaseMigrator
           var encryptedPg = EncryptionHelper.Encrypt(jsonPg);
           File.WriteAllText(GetSelectedProfilforPostgresql(cboPostgresqlConnectionProfile.SelectedValue.ToString()), encryptedPg);
           Settings.Default.PostgresqlSelectedProfil = cboPostgresqlConnectionProfile.SelectedValue.ToString();
-          Settings.Default.Save();
+          
+          // Sauvegarder la sélection du profil de chargement PostgreSQL
+          if (cboPostgresConnectionProfileFile.SelectedIndex != -1)
+          {
+            Settings.Default.PostgresConnectionProfileFile = cboPostgresConnectionProfileFile.SelectedValue.ToString();
+          }
         }
+        
+        // Sauvegarder tous les paramètres
+        Settings.Default.Save();
       }
       catch (Exception exception)
       {

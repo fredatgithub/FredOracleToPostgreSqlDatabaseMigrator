@@ -47,5 +47,11 @@
     <Setting Name="PostgresqlSelectedProfil" Type="System.String" Scope="User">
       <Value Profile="(Default)">Profil1</Value>
     </Setting>
+    <Setting Name="OracleLConnectionProfileFile" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="PostgresConnectionProfileFile" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
   </Settings>
 </SettingsFile>
